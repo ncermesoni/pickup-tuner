@@ -1,5 +1,6 @@
 use crate::dsp::capture::CaptureState;
 use crate::model::grid::{CaptureGrid, Metric};
+use crate::ui::theme;
 use eframe::egui;
 
 /// Within this band of the row median a string counts as balanced.
@@ -29,10 +30,10 @@ impl Default for GridUiState {
 
 fn delta_color(delta: Option<f32>) -> egui::Color32 {
     match delta {
-        None => egui::Color32::from_gray(28),
-        Some(d) if d.abs() <= BALANCED_DB => egui::Color32::from_rgb(30, 70, 40),
-        Some(d) if d.abs() <= WAY_OFF_DB => egui::Color32::from_rgb(85, 65, 20),
-        Some(_) => egui::Color32::from_rgb(95, 35, 30),
+        None => theme::EMPTY_BG,
+        Some(d) if d.abs() <= BALANCED_DB => theme::GREEN_BG,
+        Some(d) if d.abs() <= WAY_OFF_DB => theme::AMBER_BG,
+        Some(_) => theme::RED_BG,
     }
 }
 
@@ -67,7 +68,7 @@ fn cell(
         painter.rect_stroke(
             rect.shrink(1.0),
             4.0,
-            egui::Stroke::new(2.0, egui::Color32::from_rgb(120, 180, 255)),
+            egui::Stroke::new(2.0, theme::FOCUS),
             egui::StrokeKind::Inside,
         );
     }
@@ -79,15 +80,15 @@ fn cell(
                 egui::pos2(rect.center().x, rect.top() + 14.0),
                 egui::Align2::CENTER_CENTER,
                 &big,
-                egui::FontId::proportional(16.0),
-                egui::Color32::WHITE,
+                egui::FontId::monospace(15.0),
+                theme::TEXT,
             );
             painter.text(
                 egui::pos2(rect.center().x, rect.bottom() - 11.0),
                 egui::Align2::CENTER_CENTER,
                 format!("{:.1} dB", capture.value(metric)),
-                egui::FontId::proportional(10.0),
-                egui::Color32::from_gray(170),
+                egui::FontId::monospace(9.5),
+                theme::TEXT_DIM,
             );
             if capture.clipped {
                 painter.text(
@@ -95,7 +96,7 @@ fn cell(
                     egui::Align2::CENTER_CENTER,
                     "⚠",
                     egui::FontId::proportional(11.0),
-                    egui::Color32::from_rgb(255, 120, 100),
+                    theme::RED,
                 );
             }
 
@@ -152,7 +153,7 @@ pub fn grid_widget(
     let mut pickups = grid.pickups();
 
     ui.horizontal(|ui| {
-        ui.strong("Capture grid");
+        ui.label(theme::section_label("Capture grid"));
         ui.selectable_value(&mut state.metric, Metric::Rms, "RMS")
             .on_hover_text("perceived loudness as the note rings — use this for balance");
         ui.selectable_value(&mut state.metric, Metric::Peak, "Peak")
@@ -175,10 +176,10 @@ pub fn grid_widget(
         }
         match capture_state {
             CaptureState::Armed => {
-                ui.colored_label(egui::Color32::YELLOW, "armed — pluck the string…");
+                ui.colored_label(theme::AMBER, "armed — pluck the string…");
             }
             CaptureState::Capturing => {
-                ui.colored_label(egui::Color32::from_rgb(80, 220, 120), "capturing…");
+                ui.colored_label(theme::GREEN, "capturing…");
             }
             CaptureState::Idle => {}
         }

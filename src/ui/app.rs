@@ -256,20 +256,25 @@ impl eframe::App for App {
         let mut reconnect_clicked = false;
         egui::TopBottomPanel::top("status").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.heading("Pickup Tuner");
+                ui.label(
+                    egui::RichText::new("Pickup Tuner")
+                        .size(15.0)
+                        .strong()
+                        .color(crate::ui::theme::TEXT),
+                );
                 if let Some(err) = &self.engine_error {
-                    ui.colored_label(egui::Color32::RED, err);
+                    ui.colored_label(crate::ui::theme::RED, err);
                 }
                 match &self.engine {
                     Some(engine) if !engine.is_running() => {
-                        ui.colored_label(egui::Color32::YELLOW, "audio device stopped");
+                        ui.colored_label(crate::ui::theme::AMBER, "audio device stopped");
                         if ui.button("Reconnect").clicked() {
                             reconnect_clicked = true;
                         }
                     }
                     Some(_) if self.silent_seconds > 3.0 => {
                         ui.colored_label(
-                            egui::Color32::YELLOW,
+                            crate::ui::theme::AMBER,
                             format!(
                                 "no signal on input {} — check cable/channel",
                                 self.settings.input_channel + 1
@@ -278,7 +283,7 @@ impl eframe::App for App {
                     }
                     Some(_) => {}
                     None => {
-                        ui.colored_label(egui::Color32::RED, "audio engine unavailable");
+                        ui.colored_label(crate::ui::theme::RED, "audio engine unavailable");
                     }
                 }
             });
@@ -304,21 +309,30 @@ impl eframe::App for App {
 
         let mut grid_action = GridAction::None;
         egui::CentralPanel::default().show(ctx, |ui| {
-            match meter_widget(ui, &self.meter) {
-                MeterAction::ResetHold => self.meter.reset_hold(),
-                MeterAction::None => {}
-            }
-            ui.separator();
-            tuner_widget(ui, self.tuner_reading.as_ref());
-            ui.separator();
-            grid_action = grid_widget(
-                ui,
-                &self.grid,
-                &mut self.selected,
-                &mut self.grid_ui,
-                self.pluck.state(),
-                &mut self.settings.pickup_names,
-            );
+            crate::ui::theme::section_frame().show(ui, |ui| {
+                ui.set_min_width(ui.available_width());
+                match meter_widget(ui, &self.meter) {
+                    MeterAction::ResetHold => self.meter.reset_hold(),
+                    MeterAction::None => {}
+                }
+            });
+            ui.add_space(6.0);
+            crate::ui::theme::section_frame().show(ui, |ui| {
+                ui.set_min_width(ui.available_width());
+                tuner_widget(ui, self.tuner_reading.as_ref());
+            });
+            ui.add_space(6.0);
+            crate::ui::theme::section_frame().show(ui, |ui| {
+                ui.set_min_width(ui.available_width());
+                grid_action = grid_widget(
+                    ui,
+                    &self.grid,
+                    &mut self.selected,
+                    &mut self.grid_ui,
+                    self.pluck.state(),
+                    &mut self.settings.pickup_names,
+                );
+            });
         });
         // Global shortcuts must not fire while a text field (pickup name)
         // has keyboard focus.
