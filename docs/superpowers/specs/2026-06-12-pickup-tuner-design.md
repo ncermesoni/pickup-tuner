@@ -56,15 +56,22 @@ at whatever they need while holding a screwdriver.
   from playing the note — instantaneous capture proved impossible to time
   against the attack transient. Arming is always manual — the user still
   controls what gets stored and where.
-- The grid displays **deltas** so imbalance is visible at a glance:
-  - String-to-string: each slot relative to a reference within its pickup row
-    (e.g. the quietest string).
-  - Pickup-to-pickup: row-level comparison (e.g. row averages).
-  - Deltas are computed per metric (peak and RMS); which is shown by default
-    and how is a UX decision (see UX-revisit list, item 4).
+- The grid displays **deltas** so imbalance is visible at a glance
+  (revised 2026-06-12 after first hands-on session):
+  - String-to-string: each slot relative to the **median** of its pickup row,
+    rendered as a physical instruction (↑ raise / ↓ lower the pole, ✓ within
+    ±0.5 dB) on green/amber/red heatmap cells with explanatory tooltips.
+  - Pickup-to-pickup: row averages compared in words below the grid
+    ("Bridge vs Neck: +2.3 dB hotter — lower it or raise Neck").
+  - Deltas are computed per metric (peak and RMS), toggleable.
+- Pickup rows have editable, persisted names (default Neck/Bridge).
+- String columns are labeled descending (S6 = low E at the left) and pick up
+  the note name the tuner heard at capture time.
+- After a capture lands, selection auto-advances to the next string (wrapping
+  to the next pickup row); arrow keys move selection manually.
+- Reshaping the grid preserves captures that exist in both shapes.
 - Slots are individually re-capturable and clearable; whole grid is clearable.
-- Readings captured while the clipping indicator is lit are flagged as
-  untrustworthy in the grid.
+- Readings captured while clipping occurred are flagged as untrustworthy.
 
 ### 3. Chromatic tuner (always running)
 
