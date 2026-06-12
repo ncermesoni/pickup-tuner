@@ -1,0 +1,24 @@
+[package]
+name = "pickup-tuner"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eframe = "0.31"
+cxx-juce = "0.8"
+rtrb = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+directories = "6"
+anyhow = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+# Build with `--features asio` once CXX_JUCE_ASIO_SDK_DIR points at the
+# Steinberg ASIO SDK. Without it the app runs on WASAPI/DirectSound.
+asio = ["cxx-juce/asio"]
+
+[profile.release]
+opt-level = 3
