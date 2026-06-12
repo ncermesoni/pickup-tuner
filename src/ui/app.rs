@@ -320,22 +320,26 @@ impl eframe::App for App {
                 &mut self.settings.pickup_names,
             );
         });
-        if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
-            grid_action = GridAction::Capture;
-        }
-        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
-            self.pluck.cancel();
-        }
-        let (dp, ds) = ctx.input(|i| {
-            (
-                i.key_pressed(egui::Key::ArrowDown) as isize
-                    - i.key_pressed(egui::Key::ArrowUp) as isize,
-                i.key_pressed(egui::Key::ArrowRight) as isize
-                    - i.key_pressed(egui::Key::ArrowLeft) as isize,
-            )
-        });
-        if dp != 0 || ds != 0 {
-            self.move_selection(dp, ds);
+        // Global shortcuts must not fire while a text field (pickup name)
+        // has keyboard focus.
+        if !ctx.wants_keyboard_input() {
+            if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
+                grid_action = GridAction::Capture;
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+                self.pluck.cancel();
+            }
+            let (dp, ds) = ctx.input(|i| {
+                (
+                    i.key_pressed(egui::Key::ArrowDown) as isize
+                        - i.key_pressed(egui::Key::ArrowUp) as isize,
+                    i.key_pressed(egui::Key::ArrowRight) as isize
+                        - i.key_pressed(egui::Key::ArrowLeft) as isize,
+                )
+            });
+            if dp != 0 || ds != 0 {
+                self.move_selection(dp, ds);
+            }
         }
         match grid_action {
             GridAction::Capture => self.toggle_arm(),
