@@ -80,9 +80,11 @@ mod tests {
     fn save_and_load_round_trip() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
-        let mut s = Settings::default();
-        s.input_device = "Focusrite USB ASIO".into();
-        s.buffer_size = 128;
+        let s = Settings {
+            input_device: "Focusrite USB ASIO".into(),
+            buffer_size: 128,
+            ..Settings::default()
+        };
         s.save(&path).unwrap();
         let loaded = Settings::load(&path);
         assert_eq!(loaded, s);

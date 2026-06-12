@@ -94,7 +94,7 @@ pub fn detect_pitch(
         }
         if cmndf[tau] < threshold as f64 {
             // Descend to the local minimum of this dip.
-            while tau + 1 <= tau_max && cmndf[tau + 1] < cmndf[tau] {
+            while tau < tau_max && cmndf[tau + 1] < cmndf[tau] {
                 tau += 1;
             }
             break tau;

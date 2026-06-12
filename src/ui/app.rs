@@ -2,8 +2,12 @@ use crate::audio::engine::{AudioConfig, AudioEngine};
 use crate::audio::process::db_to_linear;
 use crate::dsp::levels::{MeterState, dbfs};
 use crate::dsp::pitch::{NoteReading, Tuner};
-use crate::model::grid::CaptureGrid;
+use crate::model::grid::{Capture, CaptureGrid};
 use crate::model::settings::Settings;
+use crate::ui::config::{ConfigAction, DeviceInfo, config_panel};
+use crate::ui::grid::{GridAction, GridUiState, grid_widget};
+use crate::ui::meter::{MeterAction, meter_widget};
+use crate::ui::tuner::tuner_widget;
 use eframe::egui;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
@@ -25,10 +29,18 @@ pub struct App {
     tuner_hold: f32,
     pub grid: CaptureGrid,
     pub selected: (usize, usize), // (pickup, string)
+    pub grid_ui: GridUiState,
     pub settings: Settings,
     settings_path: Option<PathBuf>,
     sample_chunk: Vec<f32>,
     frame_count: u32,
+    silent_seconds: f32,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl App {
@@ -53,10 +65,12 @@ impl App {
             tuner_hold: 0.0,
             grid: CaptureGrid::new(settings.strings, settings.pickups),
             selected: (0, 0),
+            grid_ui: GridUiState::default(),
             settings,
             settings_path,
             sample_chunk: Vec::new(),
             frame_count: 0,
+            silent_seconds: 0.0,
         };
         app.apply_audio_config();
         app.push_controls();
@@ -124,7 +138,7 @@ impl App {
         self.tuner.feed(&self.sample_chunk);
 
         self.frame_count = self.frame_count.wrapping_add(1);
-        if self.frame_count % PITCH_EVERY_N_FRAMES == 0 {
+        if self.frame_count.is_multiple_of(PITCH_EVERY_N_FRAMES) {
             let gated = dbfs(self.meter.rms()) < TUNER_GATE_DB;
             let fresh = if gated {
                 None
@@ -142,6 +156,54 @@ impl App {
         if self.tuner_hold <= 0.0 {
             self.tuner_reading = None;
         }
+
+        if dbfs(self.meter.peak_live) <= -90.0 {
+            self.silent_seconds += dt;
+        } else {
+            self.silent_seconds = 0.0;
+        }
+    }
+
+    fn capture_selected(&mut self) {
+        self.grid.capture(
+            self.selected.0,
+            self.selected.1,
+            Capture {
+                peak_db: dbfs(self.meter.peak_hold),
+                rms_db: dbfs(self.meter.rms()),
+                clipped: self.meter.clipped,
+            },
+        );
+        // Each capture starts a fresh hold window for the next pluck.
+        self.meter.reset_hold();
+    }
+
+    fn device_info(&mut self) -> DeviceInfo {
+        match &mut self.engine {
+            Some(engine) => {
+                let device_types = engine.device_type_names();
+                let (inputs, outputs) = engine.device_names();
+                let (sample_rates, buffer_sizes) = engine.available_rates_and_buffers();
+                DeviceInfo {
+                    device_types,
+                    inputs,
+                    outputs,
+                    sample_rates,
+                    buffer_sizes,
+                    input_channels: engine.input_channel_count(),
+                    actual: Some(engine.actual_setup()),
+                }
+            }
+            None => DeviceInfo {
+                device_types: Vec::new(),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+                sample_rates: Vec::new(),
+                buffer_sizes: Vec::new(),
+                input_channels: 0,
+                actual: None,
+            },
+        }
     }
 }
 
@@ -150,28 +212,85 @@ impl eframe::App for App {
         let dt = ctx.input(|i| i.stable_dt);
         self.drain_audio(dt);
 
+        let mut reconnect_clicked = false;
         egui::TopBottomPanel::top("status").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("Pickup Tuner");
                 if let Some(err) = &self.engine_error {
                     ui.colored_label(egui::Color32::RED, err);
                 }
+                match &self.engine {
+                    Some(engine) if !engine.is_running() => {
+                        ui.colored_label(egui::Color32::YELLOW, "audio device stopped");
+                        if ui.button("Reconnect").clicked() {
+                            reconnect_clicked = true;
+                        }
+                    }
+                    Some(_) if self.silent_seconds > 3.0 => {
+                        ui.colored_label(
+                            egui::Color32::YELLOW,
+                            format!(
+                                "no signal on input {} — check cable/channel",
+                                self.settings.input_channel + 1
+                            ),
+                        );
+                    }
+                    Some(_) => {}
+                    None => {
+                        ui.colored_label(egui::Color32::RED, "audio engine unavailable");
+                    }
+                }
             });
         });
+        if reconnect_clicked {
+            self.apply_audio_config();
+        }
 
+        let info = self.device_info();
+        let before = self.settings.clone();
+        let mut config_action = ConfigAction::None;
         egui::SidePanel::right("config")
-            .default_width(260.0)
+            .default_width(280.0)
             .show(ctx, |ui| {
-                ui.label("config panel (pending)");
+                config_action = config_panel(ui, &mut self.settings, &info);
             });
+        // Only touch atomics/disk when something actually changed — this
+        // runs every frame.
+        if self.settings != before {
+            self.push_controls();
+            self.save_settings();
+        }
+        if let ConfigAction::Apply = config_action {
+            self.apply_audio_config();
+        }
 
+        let mut grid_action = GridAction::None;
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label("meter (pending)");
+            match meter_widget(ui, &self.meter) {
+                MeterAction::ResetHold => self.meter.reset_hold(),
+                MeterAction::None => {}
+            }
             ui.separator();
-            ui.label("tuner (pending)");
+            tuner_widget(ui, self.tuner_reading.as_ref());
             ui.separator();
-            ui.label("grid (pending)");
+            grid_action = grid_widget(ui, &self.grid, &mut self.selected, &mut self.grid_ui);
         });
+        if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
+            grid_action = GridAction::Capture;
+        }
+        match grid_action {
+            GridAction::Capture => self.capture_selected(),
+            GridAction::ClearSlot => self.grid.clear_slot(self.selected.0, self.selected.1),
+            GridAction::ClearAll => self.grid.clear_all(),
+            GridAction::Reshape { strings, pickups } => {
+                self.grid.resize(strings, pickups);
+                self.selected = (0, 0);
+                self.settings.strings = strings;
+                self.settings.pickups = pickups;
+                self.save_settings();
+            }
+            GridAction::None => {}
+        }
 
         ctx.request_repaint_after(Duration::from_millis(16));
     }
