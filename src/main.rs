@@ -1,20 +1,13 @@
 use eframe::egui;
 
 fn main() -> eframe::Result {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([1000.0, 650.0]),
+        ..Default::default()
+    };
     eframe::run_native(
         "Pickup Tuner",
         options,
-        Box::new(|_cc| Ok(Box::new(Placeholder))),
+        Box::new(|_cc| Ok(Box::new(pickup_tuner::ui::app::App::new()))),
     )
-}
-
-struct Placeholder;
-
-impl eframe::App for Placeholder {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Pickup Tuner");
-        });
-    }
 }
