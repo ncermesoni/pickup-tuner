@@ -218,7 +218,7 @@ pub fn grid_widget(
 
             for p in 0..grid.pickups() {
                 if let Some(name) = pickup_names.get_mut(p) {
-                    ui.add(egui::TextEdit::singleline(name).desired_width(70.0));
+                    ui.add(egui::TextEdit::singleline(name).desired_width(95.0));
                 } else {
                     ui.strong(format!("P{}", p + 1));
                 }
