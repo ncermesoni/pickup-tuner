@@ -47,14 +47,17 @@ at whatever they need while holding a screwdriver.
 
 - A grid of reading slots: **strings × pickups**.
   - String count configurable (e.g. 4–12; covers bass through 12-string).
-  - Pickup count configurable (1–3 or more).
+  - Pickup count configurable (1–4).
 - Capture flow: pluck a string, then press a key or click to log the current
-  peak/RMS reading into the selected slot. Capture is always manual — the user
+  reading into the selected slot. Each slot stores **both** the peak-hold and
+  RMS values at the moment of capture. Capture is always manual — the user
   controls what gets stored.
 - The grid displays **deltas** so imbalance is visible at a glance:
   - String-to-string: each slot relative to a reference within its pickup row
     (e.g. the quietest string).
   - Pickup-to-pickup: row-level comparison (e.g. row averages).
+  - Deltas are computed per metric (peak and RMS); which is shown by default
+    and how is a UX decision (see UX-revisit list, item 4).
 - Slots are individually re-capturable and clearable; whole grid is clearable.
 - Readings captured while the clipping indicator is lit are flagged as
   untrustworthy in the grid.
