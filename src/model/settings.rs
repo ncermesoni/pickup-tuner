@@ -13,6 +13,7 @@ pub struct Settings {
     pub input_channel: usize,
     pub strings: usize,
     pub pickups: usize,
+    pub pickup_names: Vec<String>,
     pub a4_hz: f32,
     pub monitor_gain_db: f32,
     pub monitor_mute: bool,
@@ -29,6 +30,7 @@ impl Default for Settings {
             input_channel: 0,
             strings: 6,
             pickups: 2,
+            pickup_names: vec!["Neck".into(), "Bridge".into()],
             a4_hz: 440.0,
             monitor_gain_db: 0.0,
             monitor_mute: false,
@@ -51,6 +53,16 @@ impl Settings {
             .unwrap_or_default()
     }
 
+    /// Keep `pickup_names` in lockstep with the pickup count, filling new
+    /// rows with placeholder names.
+    pub fn sync_pickup_names(&mut self) {
+        let target = self.pickups;
+        while self.pickup_names.len() < target {
+            self.pickup_names.push(format!("Pickup {}", self.pickup_names.len() + 1));
+        }
+        self.pickup_names.truncate(target);
+    }
+
     pub fn save(&self, path: &Path) -> Result<()> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -71,9 +83,23 @@ mod tests {
         assert_eq!(s.buffer_size, 256);
         assert_eq!(s.strings, 6);
         assert_eq!(s.pickups, 2);
+        assert_eq!(s.pickup_names, vec!["Neck", "Bridge"]);
         assert_eq!(s.a4_hz, 440.0);
         assert_eq!(s.device_type, "ASIO");
         assert!(!s.monitor_mute);
+    }
+
+    #[test]
+    fn sync_pickup_names_grows_and_shrinks() {
+        let mut s = Settings {
+            pickups: 4,
+            ..Settings::default()
+        };
+        s.sync_pickup_names();
+        assert_eq!(s.pickup_names, vec!["Neck", "Bridge", "Pickup 3", "Pickup 4"]);
+        s.pickups = 1;
+        s.sync_pickup_names();
+        assert_eq!(s.pickup_names, vec!["Neck"]);
     }
 
     #[test]

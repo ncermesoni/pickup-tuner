@@ -2,6 +2,11 @@ use crate::dsp::capture::CaptureState;
 use crate::model::grid::{CaptureGrid, Metric};
 use eframe::egui;
 
+/// Within this band of the row median a string counts as balanced.
+const BALANCED_DB: f32 = 0.5;
+/// Beyond this the cell goes red.
+const WAY_OFF_DB: f32 = 2.0;
+
 pub enum GridAction {
     None,
     Capture,
@@ -22,12 +27,125 @@ impl Default for GridUiState {
     }
 }
 
+fn delta_color(delta: Option<f32>) -> egui::Color32 {
+    match delta {
+        None => egui::Color32::from_gray(28),
+        Some(d) if d.abs() <= BALANCED_DB => egui::Color32::from_rgb(30, 70, 40),
+        Some(d) if d.abs() <= WAY_OFF_DB => egui::Color32::from_rgb(85, 65, 20),
+        Some(_) => egui::Color32::from_rgb(95, 35, 30),
+    }
+}
+
+/// "✓" when balanced, otherwise the physical instruction: hotter than the
+/// row median means lower the pole piece, quieter means raise it.
+fn delta_text(delta: f32) -> String {
+    if delta.abs() <= BALANCED_DB {
+        "✓".into()
+    } else if delta > 0.0 {
+        format!("↓ {:.1}", delta.abs())
+    } else {
+        format!("↑ {:.1}", delta.abs())
+    }
+}
+
+fn cell(
+    ui: &mut egui::Ui,
+    grid: &CaptureGrid,
+    pickup: usize,
+    string: usize,
+    metric: Metric,
+    is_selected: bool,
+) -> egui::Response {
+    let size = egui::vec2(72.0, 44.0);
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    let painter = ui.painter_at(rect);
+
+    let slot = grid.slot(pickup, string);
+    let delta = grid.delta_db(pickup, string, metric);
+    painter.rect_filled(rect, 4.0, delta_color(delta));
+    if is_selected {
+        painter.rect_stroke(
+            rect.shrink(1.0),
+            4.0,
+            egui::Stroke::new(2.0, egui::Color32::from_rgb(120, 180, 255)),
+            egui::StrokeKind::Inside,
+        );
+    }
+
+    match slot {
+        Some(capture) => {
+            let big = delta.map(delta_text).unwrap_or_default();
+            painter.text(
+                egui::pos2(rect.center().x, rect.top() + 14.0),
+                egui::Align2::CENTER_CENTER,
+                &big,
+                egui::FontId::proportional(16.0),
+                egui::Color32::WHITE,
+            );
+            painter.text(
+                egui::pos2(rect.center().x, rect.bottom() - 11.0),
+                egui::Align2::CENTER_CENTER,
+                format!("{:.1} dB", capture.value(metric)),
+                egui::FontId::proportional(10.0),
+                egui::Color32::from_gray(170),
+            );
+            if capture.clipped {
+                painter.text(
+                    egui::pos2(rect.right() - 8.0, rect.top() + 9.0),
+                    egui::Align2::CENTER_CENTER,
+                    "⚠",
+                    egui::FontId::proportional(11.0),
+                    egui::Color32::from_rgb(255, 120, 100),
+                );
+            }
+
+            let metric_name = match metric {
+                Metric::Rms => "RMS",
+                Metric::Peak => "peak",
+            };
+            let mut hover = format!("{:.1} dBFS {metric_name}", capture.value(metric));
+            if let Some(d) = delta {
+                hover.push_str(&format!(
+                    "\n{:+.1} dB vs this pickup's median string",
+                    d
+                ));
+                if d.abs() <= BALANCED_DB {
+                    hover.push_str("\nbalanced — leave this pole alone");
+                } else if d > 0.0 {
+                    hover.push_str("\nhotter than the row → lower this pole piece");
+                } else {
+                    hover.push_str("\nquieter than the row → raise this pole piece");
+                }
+            }
+            if capture.clipped {
+                hover.push_str("\n⚠ clipped during capture — re-capture with less gain");
+            }
+            response.clone().on_hover_text(hover);
+        }
+        None => {
+            painter.text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "—",
+                egui::FontId::proportional(14.0),
+                egui::Color32::from_gray(90),
+            );
+            response
+                .clone()
+                .on_hover_text("not captured yet — select, press Space, pluck");
+        }
+    }
+
+    response
+}
+
 pub fn grid_widget(
     ui: &mut egui::Ui,
     grid: &CaptureGrid,
     selected: &mut (usize, usize),
     state: &mut GridUiState,
     capture_state: CaptureState,
+    pickup_names: &mut [String],
 ) -> GridAction {
     let mut action = GridAction::None;
     let mut strings = grid.strings();
@@ -35,8 +153,10 @@ pub fn grid_widget(
 
     ui.horizontal(|ui| {
         ui.strong("Capture grid");
-        ui.selectable_value(&mut state.metric, Metric::Rms, "RMS");
-        ui.selectable_value(&mut state.metric, Metric::Peak, "Peak");
+        ui.selectable_value(&mut state.metric, Metric::Rms, "RMS")
+            .on_hover_text("perceived loudness as the note rings — use this for balance");
+        ui.selectable_value(&mut state.metric, Metric::Peak, "Peak")
+            .on_hover_text("attack transient — spots strings that spike but don't ring");
         ui.separator();
         ui.label("strings:");
         ui.add(egui::DragValue::new(&mut strings).range(4..=12));
@@ -70,40 +190,69 @@ pub fn grid_widget(
         }
     });
 
+    ui.weak("each cell: distance from that pickup's median string · ↑ raise pole · ↓ lower pole · ✓ balanced (within ±0.5 dB)");
+    ui.add_space(4.0);
+
     egui::Grid::new("capture-grid")
-        .striped(true)
-        .min_col_width(64.0)
+        .spacing(egui::vec2(4.0, 4.0))
         .show(ui, |ui| {
             ui.label(""); // corner
             for s in 0..grid.strings() {
-                ui.strong(format!("S{}", s + 1));
+                // Guitarists count strings from high to low: S6 = low E on the left.
+                let label = format!("S{}", grid.strings() - s);
+                match grid.column_note(s) {
+                    Some((name, octave)) => {
+                        ui.vertical_centered(|ui| {
+                            ui.strong(format!("{name}{octave}"));
+                            ui.weak(label);
+                        });
+                    }
+                    None => {
+                        ui.vertical_centered(|ui| {
+                            ui.strong(label);
+                        });
+                    }
+                }
             }
-            ui.strong("row avg");
             ui.end_row();
 
             for p in 0..grid.pickups() {
-                ui.strong(format!("P{}", p + 1));
+                if let Some(name) = pickup_names.get_mut(p) {
+                    ui.add(egui::TextEdit::singleline(name).desired_width(70.0));
+                } else {
+                    ui.strong(format!("P{}", p + 1));
+                }
                 for s in 0..grid.strings() {
-                    let is_selected = *selected == (p, s);
-                    let text = match grid.slot(p, s) {
-                        Some(c) => {
-                            let delta = grid.delta_db(p, s, state.metric).unwrap_or(0.0);
-                            let warn = if c.clipped { " ⚠" } else { "" };
-                            format!("{:.1}\n{:+.1}{}", c.value(state.metric), delta, warn)
-                        }
-                        None => "—".into(),
-                    };
-                    if ui.selectable_label(is_selected, text).clicked() {
+                    if cell(ui, grid, p, s, state.metric, *selected == (p, s)).clicked() {
                         *selected = (p, s);
                     }
                 }
-                match grid.row_average(p, state.metric) {
-                    Some(avg) => ui.label(format!("{avg:.1}")),
-                    None => ui.label("—"),
-                };
                 ui.end_row();
             }
         });
+
+    // Pickup-to-pickup balance in words: row averages compared to the first
+    // named pickup with data.
+    let averages: Vec<(usize, f32)> = (0..grid.pickups())
+        .filter_map(|p| grid.row_average(p, state.metric).map(|a| (p, a)))
+        .collect();
+    if averages.len() >= 2 {
+        ui.add_space(4.0);
+        let (base_p, base_avg) = averages[0];
+        let base_name = pickup_names.get(base_p).cloned().unwrap_or_default();
+        for &(p, avg) in &averages[1..] {
+            let name = pickup_names.get(p).cloned().unwrap_or_default();
+            let diff = avg - base_avg;
+            let verdict = if diff.abs() <= BALANCED_DB {
+                "level-matched ✓".to_string()
+            } else if diff > 0.0 {
+                format!("{diff:+.1} dB hotter — lower it or raise {base_name}")
+            } else {
+                format!("{:.1} dB quieter — raise it or lower {base_name}", diff)
+            };
+            ui.label(format!("{name} vs {base_name}: {verdict}"));
+        }
+    }
 
     action
 }

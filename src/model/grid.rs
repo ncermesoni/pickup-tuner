@@ -1,10 +1,12 @@
 /// One logged reading. Peak and RMS are both stored at capture time;
-/// which one drives the display is a UI choice.
+/// which one drives the display is a UI choice. `note` is what the tuner
+/// heard during the capture, used to label string columns.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Capture {
     pub peak_db: f32,
     pub rms_db: f32,
     pub clipped: bool,
+    pub note: Option<(&'static str, i32)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,22 +72,42 @@ impl CaptureGrid {
         self.slots.fill(None);
     }
 
+    /// Reshape, keeping captures whose position exists in both shapes.
     pub fn resize(&mut self, strings: usize, pickups: usize) {
-        // Readings are ephemeral by spec; reshaping invalidates positions.
-        *self = Self::new(strings, pickups);
+        let mut next = Self::new(strings, pickups);
+        for p in 0..self.pickups.min(pickups) {
+            for s in 0..self.strings.min(strings) {
+                next.slots[p * strings + s] = self.slots[p * self.strings + s];
+            }
+        }
+        *self = next;
     }
 
-    /// Reference for string-to-string deltas: the quietest captured string
-    /// in the pickup's row.
-    fn row_reference(&self, pickup: usize, metric: Metric) -> Option<f32> {
-        (0..self.strings)
+    /// Reference for string-to-string deltas: the median of the captured
+    /// strings in the pickup's row. The median frames each delta as a
+    /// physical instruction (raise/lower toward the row's middle) and is
+    /// robust to one outlier string.
+    pub fn row_median(&self, pickup: usize, metric: Metric) -> Option<f32> {
+        let mut values: Vec<f32> = (0..self.strings)
             .filter_map(|s| self.slot(pickup, s).map(|c| c.value(metric)))
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .collect();
+        if values.is_empty() {
+            return None;
+        }
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let n = values.len();
+        Some(if n % 2 == 1 {
+            values[n / 2]
+        } else {
+            (values[n / 2 - 1] + values[n / 2]) / 2.0
+        })
     }
 
+    /// Signed distance from the row median: positive = hotter than the
+    /// row's middle (lower the pole), negative = quieter (raise it).
     pub fn delta_db(&self, pickup: usize, string: usize, metric: Metric) -> Option<f32> {
         let value = self.slot(pickup, string)?.value(metric);
-        Some(value - self.row_reference(pickup, metric)?)
+        Some(value - self.row_median(pickup, metric)?)
     }
 
     pub fn row_average(&self, pickup: usize, metric: Metric) -> Option<f32> {
@@ -98,6 +120,12 @@ impl CaptureGrid {
             Some(values.iter().sum::<f32>() / values.len() as f32)
         }
     }
+
+    /// The note label for a string column: the first captured note found,
+    /// scanning pickups top to bottom (they should agree across rows).
+    pub fn column_note(&self, string: usize) -> Option<(&'static str, i32)> {
+        (0..self.pickups).find_map(|p| self.slot(p, string).and_then(|c| c.note))
+    }
 }
 
 #[cfg(test)]
@@ -109,6 +137,7 @@ mod tests {
             peak_db,
             rms_db,
             clipped: false,
+            note: None,
         }
     }
 
@@ -131,24 +160,61 @@ mod tests {
     }
 
     #[test]
-    fn resize_clears_all_slots() {
+    fn resize_preserves_overlapping_slots() {
         let mut g = CaptureGrid::new(6, 2);
         g.capture(0, 0, cap(-10.0, -18.0));
+        g.capture(1, 5, cap(-12.0, -20.0));
         g.resize(7, 3);
         assert_eq!(g.strings(), 7);
         assert_eq!(g.pickups(), 3);
-        assert!(g.slot(0, 0).is_none());
+        assert_eq!(g.slot(0, 0).unwrap().peak_db, -10.0);
+        assert_eq!(g.slot(1, 5).unwrap().peak_db, -12.0);
+        assert!(g.slot(2, 0).is_none());
     }
 
     #[test]
-    fn delta_is_relative_to_quietest_captured_in_row() {
+    fn resize_drops_out_of_range_slots() {
+        let mut g = CaptureGrid::new(6, 2);
+        g.capture(0, 0, cap(-10.0, -18.0));
+        g.capture(1, 5, cap(-12.0, -20.0));
+        g.resize(4, 1);
+        assert_eq!(g.slot(0, 0).unwrap().peak_db, -10.0);
+        assert_eq!(g.strings(), 4);
+        assert_eq!(g.pickups(), 1);
+    }
+
+    #[test]
+    fn median_of_odd_count_is_middle_value() {
         let mut g = CaptureGrid::new(3, 1);
-        g.capture(0, 0, cap(-12.0, -20.0));
-        g.capture(0, 1, cap(-10.0, -17.0));
-        // string 2 not captured
-        assert!((g.delta_db(0, 0, Metric::Rms).unwrap() - 0.0).abs() < 1e-6);
-        assert!((g.delta_db(0, 1, Metric::Rms).unwrap() - 3.0).abs() < 1e-6);
-        assert!((g.delta_db(0, 1, Metric::Peak).unwrap() - 2.0).abs() < 1e-6);
+        g.capture(0, 0, cap(0.0, -20.0));
+        g.capture(0, 1, cap(0.0, -18.0));
+        g.capture(0, 2, cap(0.0, -10.0));
+        assert!((g.row_median(0, Metric::Rms).unwrap() - (-18.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn median_of_even_count_averages_middle_two() {
+        let mut g = CaptureGrid::new(3, 1);
+        g.capture(0, 0, cap(0.0, -20.0));
+        g.capture(0, 1, cap(0.0, -17.0));
+        assert!((g.row_median(0, Metric::Rms).unwrap() - (-18.5)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn delta_is_signed_distance_from_row_median() {
+        let mut g = CaptureGrid::new(3, 1);
+        g.capture(0, 0, cap(0.0, -20.0));
+        g.capture(0, 1, cap(0.0, -18.0));
+        g.capture(0, 2, cap(0.0, -10.0));
+        assert!((g.delta_db(0, 0, Metric::Rms).unwrap() - (-2.0)).abs() < 1e-6);
+        assert!((g.delta_db(0, 1, Metric::Rms).unwrap() - 0.0).abs() < 1e-6);
+        assert!((g.delta_db(0, 2, Metric::Rms).unwrap() - 8.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn delta_of_uncaptured_slot_is_none() {
+        let mut g = CaptureGrid::new(3, 1);
+        g.capture(0, 0, cap(0.0, -20.0));
         assert!(g.delta_db(0, 2, Metric::Rms).is_none());
     }
 
@@ -181,8 +247,26 @@ mod tests {
                 peak_db: -0.1,
                 rms_db: -6.0,
                 clipped: true,
+                note: None,
             },
         );
         assert!(g.slot(0, 0).unwrap().clipped);
+    }
+
+    #[test]
+    fn column_note_comes_from_first_captured_row() {
+        let mut g = CaptureGrid::new(2, 2);
+        g.capture(
+            1,
+            0,
+            Capture {
+                peak_db: -10.0,
+                rms_db: -18.0,
+                clipped: false,
+                note: Some(("E", 2)),
+            },
+        );
+        assert_eq!(g.column_note(0), Some(("E", 2)));
+        assert_eq!(g.column_note(1), None);
     }
 }

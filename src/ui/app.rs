@@ -48,10 +48,11 @@ impl Default for App {
 impl App {
     pub fn new() -> Self {
         let settings_path = Settings::default_path();
-        let settings = settings_path
+        let mut settings = settings_path
             .as_deref()
             .map(Settings::load)
             .unwrap_or_default();
+        settings.sync_pickup_names();
 
         let (engine, engine_error) = match AudioEngine::new() {
             Ok(e) => (Some(e), None),
@@ -139,19 +140,6 @@ impl App {
                 finished_capture = Some(result);
             }
         }
-        if let Some(result) = finished_capture {
-            self.grid.capture(
-                self.selected.0,
-                self.selected.1,
-                Capture {
-                    peak_db: result.peak_db,
-                    rms_db: result.rms_db,
-                    clipped: result.clipped,
-                },
-            );
-            // Fresh hold window for observing the next pluck.
-            self.meter.reset_hold();
-        }
         self.sample_chunk.clear();
         while let Ok(s) = engine.samples_rx.pop() {
             self.sample_chunk.push(s);
@@ -183,6 +171,24 @@ impl App {
         } else {
             self.silent_seconds = 0.0;
         }
+
+        if let Some(result) = finished_capture {
+            self.grid.capture(
+                self.selected.0,
+                self.selected.1,
+                Capture {
+                    peak_db: result.peak_db,
+                    rms_db: result.rms_db,
+                    clipped: result.clipped,
+                    // The tuner display-holds through the capture window, so
+                    // this is the note that was just plucked.
+                    note: self.tuner_reading.map(|r| (r.name, r.octave)),
+                },
+            );
+            // Fresh hold window for observing the next pluck.
+            self.meter.reset_hold();
+            self.advance_selection();
+        }
     }
 
     fn toggle_arm(&mut self) {
@@ -190,6 +196,19 @@ impl App {
             CaptureState::Idle => self.pluck.arm(),
             CaptureState::Armed | CaptureState::Capturing => self.pluck.cancel(),
         }
+    }
+
+    /// After a capture lands, step to the next string; at the end of a row,
+    /// wrap to the next pickup's first string.
+    fn advance_selection(&mut self) {
+        let (p, s) = self.selected;
+        self.selected = if s + 1 < self.grid.strings() {
+            (p, s + 1)
+        } else if p + 1 < self.grid.pickups() {
+            (p + 1, 0)
+        } else {
+            (p, s)
+        };
     }
 
     fn move_selection(&mut self, d_pickup: isize, d_string: isize) {
@@ -268,20 +287,17 @@ impl eframe::App for App {
             self.apply_audio_config();
         }
 
+        // Snapshot settings before any panel can edit them (config panel,
+        // pickup name fields, reshape) — compared at the end of the frame.
+        let settings_before = self.settings.clone();
+
         let info = self.device_info();
-        let before = self.settings.clone();
         let mut config_action = ConfigAction::None;
         egui::SidePanel::right("config")
             .default_width(280.0)
             .show(ctx, |ui| {
                 config_action = config_panel(ui, &mut self.settings, &info);
             });
-        // Only touch atomics/disk when something actually changed — this
-        // runs every frame.
-        if self.settings != before {
-            self.push_controls();
-            self.save_settings();
-        }
         if let ConfigAction::Apply = config_action {
             self.apply_audio_config();
         }
@@ -301,6 +317,7 @@ impl eframe::App for App {
                 &mut self.selected,
                 &mut self.grid_ui,
                 self.pluck.state(),
+                &mut self.settings.pickup_names,
             );
         });
         if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
@@ -325,13 +342,24 @@ impl eframe::App for App {
             GridAction::ClearSlot => self.grid.clear_slot(self.selected.0, self.selected.1),
             GridAction::ClearAll => self.grid.clear_all(),
             GridAction::Reshape { strings, pickups } => {
+                // resize preserves overlapping captures
                 self.grid.resize(strings, pickups);
-                self.selected = (0, 0);
+                self.selected = (
+                    self.selected.0.min(pickups - 1),
+                    self.selected.1.min(strings - 1),
+                );
                 self.settings.strings = strings;
                 self.settings.pickups = pickups;
-                self.save_settings();
+                self.settings.sync_pickup_names();
             }
             GridAction::None => {}
+        }
+
+        // Only touch atomics/disk when something actually changed — this
+        // runs every frame.
+        if self.settings != settings_before {
+            self.push_controls();
+            self.save_settings();
         }
 
         ctx.request_repaint_after(Duration::from_millis(16));
