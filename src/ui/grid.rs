@@ -1,3 +1,4 @@
+use crate::dsp::capture::CaptureState;
 use crate::model::grid::{CaptureGrid, Metric};
 use eframe::egui;
 
@@ -26,6 +27,7 @@ pub fn grid_widget(
     grid: &CaptureGrid,
     selected: &mut (usize, usize),
     state: &mut GridUiState,
+    capture_state: CaptureState,
 ) -> GridAction {
     let mut action = GridAction::None;
     let mut strings = grid.strings();
@@ -44,8 +46,21 @@ pub fn grid_widget(
             action = GridAction::Reshape { strings, pickups };
         }
         ui.separator();
-        if ui.button("Capture (Space)").clicked() {
+        let arm_label = match capture_state {
+            CaptureState::Idle => "Arm capture (Space)",
+            CaptureState::Armed | CaptureState::Capturing => "Cancel (Space/Esc)",
+        };
+        if ui.button(arm_label).clicked() {
             action = GridAction::Capture;
+        }
+        match capture_state {
+            CaptureState::Armed => {
+                ui.colored_label(egui::Color32::YELLOW, "armed — pluck the string…");
+            }
+            CaptureState::Capturing => {
+                ui.colored_label(egui::Color32::from_rgb(80, 220, 120), "capturing…");
+            }
+            CaptureState::Idle => {}
         }
         if ui.button("Clear slot").clicked() {
             action = GridAction::ClearSlot;

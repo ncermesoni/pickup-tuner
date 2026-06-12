@@ -48,10 +48,14 @@ at whatever they need while holding a screwdriver.
 - A grid of reading slots: **strings × pickups**.
   - String count configurable (e.g. 4–12; covers bass through 12-string).
   - Pickup count configurable (1–4).
-- Capture flow: pluck a string, then press a key or click to log the current
-  reading into the selected slot. Each slot stores **both** the peak-hold and
-  RMS values at the moment of capture. Capture is always manual — the user
-  controls what gets stored.
+- Capture flow (revised 2026-06-12 after first hands-on session): **armed
+  capture**. Press a key or click to *arm*; the app waits for the next signal
+  onset (threshold −45 dBFS) and measures a fixed 500 ms window from the
+  attack. The window's peak and RMS become the slot's reading, stored
+  automatically when the window completes. This decouples pressing the key
+  from playing the note — instantaneous capture proved impossible to time
+  against the attack transient. Arming is always manual — the user still
+  controls what gets stored and where.
 - The grid displays **deltas** so imbalance is visible at a glance:
   - String-to-string: each slot relative to a reference within its pickup row
     (e.g. the quietest string).

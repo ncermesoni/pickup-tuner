@@ -1,5 +1,6 @@
 use crate::audio::engine::{AudioConfig, AudioEngine};
 use crate::audio::process::db_to_linear;
+use crate::dsp::capture::{CaptureState, PluckCapture};
 use crate::dsp::levels::{MeterState, dbfs};
 use crate::dsp::pitch::{NoteReading, Tuner};
 use crate::model::grid::{Capture, CaptureGrid};
@@ -24,6 +25,7 @@ pub struct App {
     pub engine: Option<AudioEngine>,
     pub engine_error: Option<String>,
     pub meter: MeterState,
+    pub pluck: PluckCapture,
     pub tuner: Tuner,
     pub tuner_reading: Option<NoteReading>,
     tuner_hold: f32,
@@ -60,6 +62,7 @@ impl App {
             engine,
             engine_error,
             meter: MeterState::new(settings.sample_rate as f32),
+            pluck: PluckCapture::new(settings.sample_rate as f32),
             tuner: Tuner::new(settings.sample_rate as f32),
             tuner_reading: None,
             tuner_hold: 0.0,
@@ -93,6 +96,7 @@ impl App {
                     // The rate may have been coerced by the hardware;
                     // rate-dependent DSP must be rebuilt to match.
                     self.meter = MeterState::new(rate as f32);
+                    self.pluck = PluckCapture::new(rate as f32);
                     self.tuner = Tuner::new(rate as f32);
                 }
                 Err(e) => self.engine_error = Some(e),
@@ -128,8 +132,25 @@ impl App {
         let Some(engine) = &mut self.engine else {
             return;
         };
+        let mut finished_capture = None;
         while let Ok(stats) = engine.stats_rx.pop() {
             self.meter.update(&stats);
+            if let Some(result) = self.pluck.feed(&stats) {
+                finished_capture = Some(result);
+            }
+        }
+        if let Some(result) = finished_capture {
+            self.grid.capture(
+                self.selected.0,
+                self.selected.1,
+                Capture {
+                    peak_db: result.peak_db,
+                    rms_db: result.rms_db,
+                    clipped: result.clipped,
+                },
+            );
+            // Fresh hold window for observing the next pluck.
+            self.meter.reset_hold();
         }
         self.sample_chunk.clear();
         while let Ok(s) = engine.samples_rx.pop() {
@@ -164,18 +185,19 @@ impl App {
         }
     }
 
-    fn capture_selected(&mut self) {
-        self.grid.capture(
-            self.selected.0,
-            self.selected.1,
-            Capture {
-                peak_db: dbfs(self.meter.peak_hold),
-                rms_db: dbfs(self.meter.rms()),
-                clipped: self.meter.clipped,
-            },
-        );
-        // Each capture starts a fresh hold window for the next pluck.
-        self.meter.reset_hold();
+    fn toggle_arm(&mut self) {
+        match self.pluck.state() {
+            CaptureState::Idle => self.pluck.arm(),
+            CaptureState::Armed | CaptureState::Capturing => self.pluck.cancel(),
+        }
+    }
+
+    fn move_selection(&mut self, d_pickup: isize, d_string: isize) {
+        let p = (self.selected.0 as isize + d_pickup)
+            .clamp(0, self.grid.pickups() as isize - 1) as usize;
+        let s = (self.selected.1 as isize + d_string)
+            .clamp(0, self.grid.strings() as isize - 1) as usize;
+        self.selected = (p, s);
     }
 
     fn device_info(&mut self) -> DeviceInfo {
@@ -273,13 +295,33 @@ impl eframe::App for App {
             ui.separator();
             tuner_widget(ui, self.tuner_reading.as_ref());
             ui.separator();
-            grid_action = grid_widget(ui, &self.grid, &mut self.selected, &mut self.grid_ui);
+            grid_action = grid_widget(
+                ui,
+                &self.grid,
+                &mut self.selected,
+                &mut self.grid_ui,
+                self.pluck.state(),
+            );
         });
         if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
             grid_action = GridAction::Capture;
         }
+        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.pluck.cancel();
+        }
+        let (dp, ds) = ctx.input(|i| {
+            (
+                i.key_pressed(egui::Key::ArrowDown) as isize
+                    - i.key_pressed(egui::Key::ArrowUp) as isize,
+                i.key_pressed(egui::Key::ArrowRight) as isize
+                    - i.key_pressed(egui::Key::ArrowLeft) as isize,
+            )
+        });
+        if dp != 0 || ds != 0 {
+            self.move_selection(dp, ds);
+        }
         match grid_action {
-            GridAction::Capture => self.capture_selected(),
+            GridAction::Capture => self.toggle_arm(),
             GridAction::ClearSlot => self.grid.clear_slot(self.selected.0, self.selected.1),
             GridAction::ClearAll => self.grid.clear_all(),
             GridAction::Reshape { strings, pickups } => {
