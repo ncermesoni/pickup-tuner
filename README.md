@@ -1,58 +1,137 @@
 # Pickup Tuner
 
-A small Windows app for adjusting guitar pickup height and pole piece height:
-live peak/RMS meters, a strings × pickups capture grid for comparing levels,
-a chromatic tuner, and low-latency ASIO monitoring.
+A small Windows app for dialing in electric guitar pickup height and pole
+piece height. It gives you live meters, a chromatic tuner, low-latency ASIO
+monitoring, and a capture grid that turns level readings into physical
+instructions: *raise this pole, lower that one, leave the rest alone*.
 
-## Build requirements
+![workflow] guitar → audio interface (ASIO) → meters + tuner + capture grid
 
-- Rust (stable, MSVC toolchain)
-- Visual Studio 2022 Build Tools with C++ (cxx-juce compiles JUCE from source)
+## Building
+
+Requirements:
+
+- Rust (stable, MSVC toolchain) and Visual Studio 2022 Build Tools with C++
+  (cxx-juce compiles JUCE from source)
 - CMake on PATH
 - For ASIO: the Steinberg ASIO SDK — download from
-  <https://www.steinberg.net/asiosdk>, extract, and set the environment
-  variable `CXX_JUCE_ASIO_SDK_DIR=<path-to-extracted-sdk>`
+  <https://www.steinberg.net/asiosdk>, extract it (this repo expects
+  `third_party/ASIOSDK`, which is gitignored — the SDK may not be
+  redistributed), and set the environment variable
+  `CXX_JUCE_ASIO_SDK_DIR` to that folder.
 
-## Build & run
+Build and run:
 
     cargo run --release --features asio
 
-Without `--features asio` the app still works using Windows Audio /
-DirectSound drivers (higher latency; fine for development, not great for
-monitoring feel).
+Without `--features asio` the app still runs on Windows Audio / DirectSound —
+fine for development, too laggy for monitoring feel.
 
-If multiple Visual Studio installs are present and the build fails with
-`LNK1104: cannot open file 'msvcrt.lib'`, run the build from a
-"x64 Native Tools Command Prompt for VS 2022" (or call `vcvars64.bat`
-first) so a toolchain with the desktop C++ libraries is selected.
+If you have multiple Visual Studio installs and hit
+`LNK1104: cannot open file 'msvcrt.lib'`, build from a
+"x64 Native Tools Command Prompt for VS 2022" (or call `vcvars64.bat` first).
 
-## Workflow
+## Setting up your interface
 
-1. Pick the driver (ASIO), your interface, sample rate, and buffer size in
-   the right-hand panel. Choose the input channel your guitar is plugged
-   into.
-2. Tune the string — readings are only comparable in tune. The tuner is
-   chromatic; any tuning and string count works.
-3. Pluck, watch peak-hold/RMS, and press **Space** to capture into the
-   selected grid slot. Work through strings × pickups. Each capture resets
-   the peak hold for the next pluck.
-4. Read the deltas: within a row, each cell shows dB above the quietest
-   captured string (pole piece balance). Row averages compare pickups
-   (overall height balance).
-5. Strum and listen via monitoring; the meters help spot overall level
-   jumps when switching pickups.
+In the right-hand panel:
 
-Captured readings are intentionally ephemeral — they describe screwdriver
-positions that change as you work. Settings (device, grid shape, reference
-pitch, monitor level) persist across launches.
+1. **Driver** → ASIO. **Input/output device** → your interface
+   (e.g. "Focusrite USB ASIO"). Changing a selection applies immediately;
+   the "active:" line shows what the hardware actually accepted.
+2. **Sample rate / buffer size** — 48000 / 128 is a good start. Smaller
+   buffers = lower monitoring latency; if you hear crackles, go up a step.
+3. **Input channel** — the physical input your guitar is plugged into.
+4. **Monitoring** — gain and mute for hearing yourself through the
+   interface outputs. Pure pass-through, no processing.
+5. **Tuner** — reference pitch (A4), default 440 Hz.
 
-## Notes
+Everything in this panel persists across launches. If the device disconnects
+mid-session a "stopped" banner appears with a Reconnect button. A "no signal"
+hint appears if the selected input stays silent for a few seconds.
 
-- A reading captured while the CLIP lamp is lit is marked with ⚠ in the
-  grid — re-capture it; clipped numbers aren't comparable.
-- cxx-juce 0.8 does not expose JUCE's "open ASIO control panel" call, so
-  there is no control-panel button. Use Focusrite Control (or your
-  interface vendor's tool) for driver-side settings.
-- Sample-rate/buffer lists show what the open device reports; if no device
-  is open yet, standard fallback values are listed and the hardware will
-  coerce to the nearest supported value on Apply.
+## Tuning workflow
+
+The display is free-form — meters, tuner, and grid are all live at once.
+
+### 1. Get in tune
+
+The tuner is chromatic (any tuning, any string count — set the string count
+to match your instrument, 4 to 12). Level readings are only comparable on
+in-tune strings, and pole pieces close to the strings can pull tuning, so
+re-check as you adjust.
+
+### 2. Set up the grid
+
+- **strings / pickups** counts in the grid header. Reshaping keeps any
+  readings that fit the new shape.
+- Click a pickup's name field to rename it (Neck / Middle / Bridge…).
+  Names persist.
+- Columns run **S6 → S1** (low string on the left). Once you capture a
+  string the column header also shows the note the tuner heard (E2, A2…).
+
+### 3. Capture readings
+
+1. Select a cell (click it, or move with the **arrow keys**).
+2. Press **Space** (or "Arm capture"). Status shows *armed — pluck the
+   string…*
+3. Pluck. The app detects the attack and measures a 0.5 s window from it:
+   the window's peak (attack) and RMS (how loud the note rings) land in the
+   cell automatically, and selection advances to the next string.
+4. Repeat: Space → pluck → Space → pluck, straight through the row.
+
+**Esc** (or Space again) cancels an armed capture. Pluck consistently — same
+pick attack, same spot relative to the pickup — and let notes ring; the
+window measures half a second.
+
+A **⚠** on a cell means the signal clipped during that capture. Lower your
+interface's input gain and re-capture it — clipped readings aren't
+comparable. (Watch the CLIP lamp on the meter; "Reset hold" clears it.)
+
+### 4. Read the grid
+
+Each captured cell shows the *action*, computed against that pickup row's
+median string:
+
+| Cell shows | Meaning |
+|---|---|
+| **✓** | within ±0.5 dB of the row median — leave this pole alone |
+| **↓ 1.5** | 1.5 dB hotter than the row — lower this pole piece |
+| **↑ 0.8** | 0.8 dB quieter than the row — raise this pole piece |
+
+Cell color says the same at a glance: **green** balanced, **amber** within
+2 dB, **red** beyond. The small number underneath is the absolute level in
+dBFS. Hover any cell for the full explanation.
+
+The **RMS / Peak** toggle switches the metric driving everything: RMS tracks
+perceived loudness as the note rings (use this for balance); Peak tracks the
+attack transient (spots strings that spike hard but don't ring — typical of
+poles set too close).
+
+Below the grid, pickup-to-pickup balance is written out in words, e.g.
+*"Bridge vs Neck: +2.3 dB hotter — lower it or raise Neck"*. That's the
+volume jump you hear flipping the selector switch; adjust overall pickup
+height (the two outer screws) to close it.
+
+### 5. Adjust and iterate
+
+Adjust a pole piece or pickup height, re-capture that string (select its
+cell, Space, pluck), and watch the deltas move. Note that deltas are measured
+against the row *median*, so numbers shift slightly as the row's middle
+moves — converge on green, not on chasing exact zeros.
+
+For overall feel, strum while listening through monitoring and watch the
+meters — a string that's "balanced" on single plucks but jumps out of a
+strum is usually a Peak-metric problem.
+
+Captured readings are deliberately **not saved** — they describe screwdriver
+positions that change as you work. Each session starts with a blank grid.
+
+## Notes & limitations
+
+- No ASIO control panel button (the bindings don't expose it) — use
+  Focusrite Control or your vendor's tool for driver-side settings.
+- Monitoring outputs to all channels of the selected output device; there is
+  no output-pair picker.
+- The onset detector triggers at −45 dBFS. Very noisy single-coils idling
+  near that level could self-trigger an armed capture — lower your input
+  gain if captures fire without a pluck.
