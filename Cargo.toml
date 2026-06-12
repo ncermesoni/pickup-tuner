@@ -2,6 +2,8 @@
 name = "pickup-tuner"
 version = "0.1.0"
 edition = "2024"
+license = "GPL-3.0-or-later"
+description = "Guitar pickup height tuning tool: meters, chromatic tuner, ASIO monitoring, capture grid"
 
 [dependencies]
 eframe = "0.31"

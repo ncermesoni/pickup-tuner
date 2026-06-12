@@ -135,3 +135,17 @@ positions that change as you work. Each session starts with a blank grid.
 - The onset detector triggers at −45 dBFS. Very noisy single-coils idling
   near that level could self-trigger an armed capture — lower your input
   gain if captures fire without a pluck.
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 or
+later — see [LICENSE](LICENSE).
+
+It builds against JUCE's `juce_core`, `juce_events`, `juce_audio_basics`,
+and `juce_audio_devices` modules (ISC licensed) via the
+[cxx-juce](https://github.com/JamesHallowell/cxx-juce) bindings
+(MIT/Apache-2.0). The Steinberg ASIO SDK is **not** included in this
+repository and may not be redistributed; download it from Steinberg and
+accept their license to build with ASIO support.
+
+ASIO is a trademark and software of Steinberg Media Technologies GmbH.
