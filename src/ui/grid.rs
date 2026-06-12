@@ -56,7 +56,7 @@ fn cell(
     metric: Metric,
     is_selected: bool,
 ) -> egui::Response {
-    let size = egui::vec2(72.0, 44.0);
+    let size = egui::vec2(86.0, 44.0);
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
     let painter = ui.painter_at(rect);
 
@@ -218,7 +218,12 @@ pub fn grid_widget(
 
             for p in 0..grid.pickups() {
                 if let Some(name) = pickup_names.get_mut(p) {
-                    ui.add(egui::TextEdit::singleline(name).desired_width(95.0));
+                    // add_sized forces the allocation; desired_width alone
+                    // gets clamped by the grid cell's available width.
+                    ui.add_sized(
+                        egui::vec2(100.0, 22.0),
+                        egui::TextEdit::singleline(name),
+                    );
                 } else {
                     ui.strong(format!("P{}", p + 1));
                 }
