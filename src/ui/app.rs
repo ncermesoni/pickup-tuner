@@ -324,6 +324,7 @@ impl eframe::App for App {
             ui.add_space(6.0);
             crate::ui::theme::section_frame().show(ui, |ui| {
                 ui.set_min_width(ui.available_width());
+                let balance_db = self.settings.balance_db;
                 grid_action = grid_widget(
                     ui,
                     &self.grid,
@@ -331,6 +332,7 @@ impl eframe::App for App {
                     &mut self.grid_ui,
                     self.pluck.state(),
                     &mut self.settings.pickup_names,
+                    balance_db,
                 );
             });
         });

@@ -17,6 +17,8 @@ pub struct Settings {
     pub a4_hz: f32,
     pub monitor_gain_db: f32,
     pub monitor_mute: bool,
+    /// Within ±this of the row median a string counts as balanced.
+    pub balance_db: f32,
 }
 
 impl Default for Settings {
@@ -34,6 +36,7 @@ impl Default for Settings {
             a4_hz: 440.0,
             monitor_gain_db: 0.0,
             monitor_mute: false,
+            balance_db: 0.5,
         }
     }
 }
@@ -87,6 +90,7 @@ mod tests {
         assert_eq!(s.a4_hz, 440.0);
         assert_eq!(s.device_type, "ASIO");
         assert!(!s.monitor_mute);
+        assert_eq!(s.balance_db, 0.5);
     }
 
     #[test]

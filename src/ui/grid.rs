@@ -3,10 +3,9 @@ use crate::model::grid::{CaptureGrid, Metric};
 use crate::ui::theme;
 use eframe::egui;
 
-/// Within this band of the row median a string counts as balanced.
-const BALANCED_DB: f32 = 0.5;
-/// Beyond this the cell goes red.
-const WAY_OFF_DB: f32 = 2.0;
+/// The amber "getting close" band extends this many times past the
+/// user's balance threshold; beyond it the cell goes red.
+const AMBER_BAND_FACTOR: f32 = 4.0;
 
 pub enum GridAction {
     None,
@@ -28,19 +27,19 @@ impl Default for GridUiState {
     }
 }
 
-fn delta_color(delta: Option<f32>) -> egui::Color32 {
+fn delta_color(delta: Option<f32>, balance_db: f32) -> egui::Color32 {
     match delta {
         None => theme::EMPTY_BG,
-        Some(d) if d.abs() <= BALANCED_DB => theme::GREEN_BG,
-        Some(d) if d.abs() <= WAY_OFF_DB => theme::AMBER_BG,
+        Some(d) if d.abs() <= balance_db => theme::GREEN_BG,
+        Some(d) if d.abs() <= balance_db * AMBER_BAND_FACTOR => theme::AMBER_BG,
         Some(_) => theme::RED_BG,
     }
 }
 
 /// "✓" when balanced, otherwise the physical instruction: hotter than the
 /// row median means lower the pole piece, quieter means raise it.
-fn delta_text(delta: f32) -> String {
-    if delta.abs() <= BALANCED_DB {
+fn delta_text(delta: f32, balance_db: f32) -> String {
+    if delta.abs() <= balance_db {
         "✓".into()
     } else if delta > 0.0 {
         format!("↓ {:.1}", delta.abs())
@@ -56,6 +55,7 @@ fn cell(
     string: usize,
     metric: Metric,
     is_selected: bool,
+    balance_db: f32,
 ) -> egui::Response {
     let size = egui::vec2(86.0, 44.0);
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
@@ -63,7 +63,7 @@ fn cell(
 
     let slot = grid.slot(pickup, string);
     let delta = grid.delta_db(pickup, string, metric);
-    painter.rect_filled(rect, 4.0, delta_color(delta));
+    painter.rect_filled(rect, 4.0, delta_color(delta, balance_db));
     if is_selected {
         painter.rect_stroke(
             rect.shrink(1.0),
@@ -75,7 +75,7 @@ fn cell(
 
     match slot {
         Some(capture) => {
-            let big = delta.map(delta_text).unwrap_or_default();
+            let big = delta.map(|d| delta_text(d, balance_db)).unwrap_or_default();
             painter.text(
                 egui::pos2(rect.center().x, rect.top() + 14.0),
                 egui::Align2::CENTER_CENTER,
@@ -110,7 +110,7 @@ fn cell(
                     "\n{:+.1} dB vs this pickup's median string",
                     d
                 ));
-                if d.abs() <= BALANCED_DB {
+                if d.abs() <= balance_db {
                     hover.push_str("\nbalanced — leave this pole alone");
                 } else if d > 0.0 {
                     hover.push_str("\nhotter than the row → lower this pole piece");
@@ -147,6 +147,7 @@ pub fn grid_widget(
     state: &mut GridUiState,
     capture_state: CaptureState,
     pickup_names: &mut [String],
+    balance_db: f32,
 ) -> GridAction {
     let mut action = GridAction::None;
     let mut strings = grid.strings();
@@ -191,7 +192,9 @@ pub fn grid_widget(
         }
     });
 
-    ui.weak("each cell: distance from that pickup's median string · ↑ raise pole · ↓ lower pole · ✓ balanced (within ±0.5 dB)");
+    ui.weak(format!(
+        "each cell: distance from that pickup's median string · ↑ raise pole · ↓ lower pole · ✓ balanced (within ±{balance_db:.1} dB)"
+    ));
     ui.add_space(4.0);
 
     egui::Grid::new("capture-grid")
@@ -229,7 +232,9 @@ pub fn grid_widget(
                     ui.strong(format!("P{}", p + 1));
                 }
                 for s in 0..grid.strings() {
-                    if cell(ui, grid, p, s, state.metric, *selected == (p, s)).clicked() {
+                    if cell(ui, grid, p, s, state.metric, *selected == (p, s), balance_db)
+                        .clicked()
+                    {
                         *selected = (p, s);
                     }
                 }
@@ -249,7 +254,7 @@ pub fn grid_widget(
         for &(p, avg) in &averages[1..] {
             let name = pickup_names.get(p).cloned().unwrap_or_default();
             let diff = avg - base_avg;
-            let verdict = if diff.abs() <= BALANCED_DB {
+            let verdict = if diff.abs() <= balance_db {
                 "level-matched ✓".to_string()
             } else if diff > 0.0 {
                 format!("{diff:+.1} dB hotter — lower it or raise {base_name}")

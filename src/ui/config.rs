@@ -123,5 +123,16 @@ pub fn config_panel(ui: &mut egui::Ui, settings: &mut Settings, info: &DeviceInf
     ui.heading("Tuner");
     ui.add(egui::Slider::new(&mut settings.a4_hz, 415.0..=466.0).text("A4 (Hz)"));
 
+    ui.separator();
+    ui.heading("Grid");
+    ui.add(
+        egui::Slider::new(&mut settings.balance_db, 0.1..=3.0)
+            .step_by(0.1)
+            .text("balanced within ± dB"),
+    )
+    .on_hover_text(
+        "how close to the row median a string must be to count as balanced (green / ✓)",
+    );
+
     action
 }
