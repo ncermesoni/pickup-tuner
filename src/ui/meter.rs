@@ -108,34 +108,36 @@ pub fn meter_widget(ui: &mut egui::Ui, meter: &MeterState) -> MeterAction {
         egui::Stroke::new(s(3.5), theme::OXBLOOD),
     ));
 
-    // ticks
-    for v in [-60.0f32, -40.0, -20.0, -10.0, -6.0, -3.0, 0.0] {
-        let a = ang_of(v);
-        let hot = v >= HOT_FROM;
+    // labeled scale every 10 dB (the arc is linear in dB, so these are evenly
+    // spaced); the 0 mark sits in the oxblood zone
+    for v in [-60i32, -50, -40, -30, -20, -10, 0] {
+        let a = ang_of(v as f32);
+        let hot = v as f32 >= HOT_FROM;
+        let color = if hot { theme::OXBLOOD } else { theme::INK_DIM };
         painter.line_segment(
-            [
-                to_screen(polar(a, R)),
-                to_screen(polar(a, if hot { 73.0 } else { 76.0 })),
-            ],
-            egui::Stroke::new(s(if hot { 1.5 } else { 1.0 }), if hot { theme::OXBLOOD } else { theme::INK_DIM }),
+            [to_screen(polar(a, R)), to_screen(polar(a, R - 8.0))],
+            egui::Stroke::new(s(1.4), color),
         );
-    }
-    // a couple of scale numbers
-    for (v, lbl) in [(-20.0f32, "-20"), (0.0, "0")] {
         painter.text(
-            to_screen(polar(ang_of(v), 62.0)),
+            to_screen(polar(a, R - 17.0)),
             egui::Align2::CENTER_CENTER,
-            lbl,
-            egui::FontId::monospace(s(9.0).max(7.0)),
-            theme::INK_DIM,
+            v.to_string(),
+            egui::FontId::monospace(s(8.5).max(7.5)),
+            color,
         );
     }
-    // VU mark (Spectral italic feel — display family)
+    // redline tick where the oxblood "hot" zone begins
+    let red = ang_of(HOT_FROM);
+    painter.line_segment(
+        [to_screen(polar(red, R)), to_screen(polar(red, R - 6.0))],
+        egui::Stroke::new(s(1.6), theme::OXBLOOD),
+    );
+    // VU mark (Spectral display family), tucked below the scale
     painter.text(
-        to_screen(egui::pos2(100.0, 44.0)),
+        to_screen(egui::pos2(100.0, 52.0)),
         egui::Align2::CENTER_CENTER,
         "VU",
-        theme::display_font(s(15.0).max(11.0)),
+        theme::display_font(s(13.0).max(11.0)),
         theme::INK_DIM,
     );
 
