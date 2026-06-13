@@ -1,0 +1,30 @@
+<!-- @dsCard group="Colors" viewport="700x200" name="Enamel accents" subtitle="A small metallic/enamel set — each carries a fixed meaning" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; background: var(--surface-card); color: var(--text-primary);
+         font-family: var(--font-ui); padding: 22px; }
+  .row { display: flex; gap: 14px; }
+  .sw { flex: 1; }
+  .chip { height: 54px; border-radius: var(--radius-sm); border: 1px solid rgba(0,0,0,0.18); }
+  .name { font-size: var(--text-sm); margin-top: 10px; }
+  .hex { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+  .mean { font-size: var(--text-xs); color: var(--text-muted); margin-top: 5px; line-height: var(--leading-normal); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background: var(--brass)"></div>
+      <div class="name">Brass</div><div class="hex">#CAA24A</div><div class="mean">power lamp · selection · handles</div></div>
+    <div class="sw"><div class="chip" style="background: var(--olive)"></div>
+      <div class="name">Olive</div><div class="hex">#6AA043</div><div class="mean">in tune · balanced · capturing</div></div>
+    <div class="sw"><div class="chip" style="background: var(--amber)"></div>
+      <div class="name">Amber</div><div class="hex">#D6A24E</div><div class="mean">armed · getting hot · caution</div></div>
+    <div class="sw"><div class="chip" style="background: var(--oxblood)"></div>
+      <div class="name">Oxblood</div><div class="hex">#B0392C</div><div class="mean">hot · clipping · error</div></div>
+  </div>
+</body>
+</html>

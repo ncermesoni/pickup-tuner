@@ -1,0 +1,29 @@
+<!-- @dsCard group="Brand" viewport="700x180" name="Glyph vocabulary" subtitle="Iconography is Unicode glyphs only — no icon font, no SVG set" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; background: var(--grad-plate); color: var(--text-primary);
+         font-family: var(--font-ui); padding: 22px; }
+  .row { display: flex; gap: 12px; }
+  .g { flex: 1; background: var(--surface-control); border: 1px solid var(--plate-edge);
+       box-shadow: var(--shadow-btn); border-radius: var(--radius-sm); padding: 14px 8px; text-align: center; }
+  .sym { font-size: 24px; line-height: 1; }
+  .nm { font-size: var(--text-xs); color: var(--text-muted); margin-top: 10px; }
+  .serif { font-family: var(--font-display); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="g"><div class="sym" style="color: var(--olive-deep)">&#10003;</div><div class="nm">balanced</div></div>
+    <div class="g"><div class="sym">&#8593;</div><div class="nm">raise pole</div></div>
+    <div class="g"><div class="sym">&#8595;</div><div class="nm">lower pole</div></div>
+    <div class="g"><div class="sym serif">&#9837;</div><div class="nm">flat</div></div>
+    <div class="g"><div class="sym serif">&#9839;</div><div class="nm">sharp</div></div>
+    <div class="g"><div class="sym" style="color: var(--oxblood)">&#9888;</div><div class="nm">clipped</div></div>
+    <div class="g"><div class="sym" style="color: var(--text-disabled)">&mdash;</div><div class="nm">empty</div></div>
+  </div>
+</body>
+</html>

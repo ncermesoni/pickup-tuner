@@ -1,0 +1,37 @@
+<!-- @dsCard group="Brand" viewport="700x200" name="Wordmark" subtitle="Silkscreen lockup on the tweed chassis, with brass power lamp" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; background: var(--grad-chassis); font-family: var(--font-ui);
+         height: 152px; display: flex; align-items: center; justify-content: center; }
+  .mark { display: flex; align-items: center; gap: 16px; }
+  .glyph { display: flex; align-items: flex-end; gap: 3px; height: 30px; }
+  .glyph span { width: 4px; background: var(--chassis-dim); border-radius: 1px; }
+  .glyph span.lit { background: var(--brass); box-shadow: 0 0 8px var(--brass); }
+  .word { display: flex; flex-direction: column; line-height: 1; }
+  .word .a { font-size: 28px; font-weight: var(--weight-strong); color: var(--chassis-ink);
+             letter-spacing: var(--tracking-brand); }
+  .word .b { font-size: 11px; color: var(--chassis-dim); letter-spacing: var(--tracking-wide);
+             text-transform: uppercase; margin-top: 7px; }
+  .plate { margin-left: 6px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
+           color: var(--brass); border: 1px solid var(--brass-deep); border-radius: 3px; padding: 3px 7px; }
+</style>
+</head>
+<body>
+  <div class="mark">
+    <div class="glyph">
+      <span style="height:10px"></span><span style="height:16px"></span>
+      <span class="lit" style="height:26px"></span><span style="height:18px"></span>
+      <span style="height:12px"></span>
+    </div>
+    <div class="word">
+      <span class="a">PICKUP&nbsp;TUNER</span>
+      <span class="b">pole &middot; height &middot; balance</span>
+    </div>
+    <span class="plate">PT-V</span>
+  </div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+/* ===========================================================================
+   Pickup Tuner — Webfont loading  (Analog VU direction)
+   --------------------------------------------------------------------------
+   Display / UI face : Oswald     — a tall, narrow condensed grotesque that
+                                     echoes the silkscreened lettering on
+                                     vintage amplifier & outboard faceplates.
+   Readout note face : Spectral   — a warm serif used ONLY for the big tuner
+                                     note and the "VU" gauge mark (engraved
+                                     instrument-dial character).
+   Numeric readouts  : JetBrains Mono — every dB / Hz / cents figure, so
+                                     columns of numbers align like a meter.
+
+   SUBSTITUTION NOTE (web): the desktop app renders numerals in Cascadia Mono /
+   Consolas, which are not redistributable; JetBrains Mono stands in. If you
+   want exact desktop fidelity, supply those font files and I'll wire @font-face.
+   =========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,500;1,600&family=JetBrains+Mono:wght@400;500;600;700&display=swap");

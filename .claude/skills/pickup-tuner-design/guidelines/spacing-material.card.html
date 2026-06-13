@@ -1,0 +1,26 @@
+<!-- @dsCard group="Spacing" viewport="700x180" name="Material & shadow" subtitle="Raised faceplate, recessed dial, sunk well — depth from bevels" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; background: var(--grad-chassis); font-family: var(--font-ui); padding: 24px; }
+  .row { display: flex; gap: 22px; }
+  .item { text-align: center; flex: 1; }
+  .box { height: 70px; border-radius: var(--radius-md); display: flex; align-items: center;
+         justify-content: center; font-size: var(--text-xs); color: var(--text-muted); }
+  .plate { background: var(--grad-plate); border: 1px solid var(--plate-edge); box-shadow: var(--shadow-plate); }
+  .dial { background: var(--grad-dial); border: 1px solid var(--dial-edge); box-shadow: var(--shadow-dial); }
+  .well { background: var(--well); box-shadow: var(--shadow-well); color: var(--dial); }
+  .tok { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-on-chassis-dim); margin-top: 10px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="item"><div class="box plate">faceplate</div><div class="tok">--shadow-plate</div></div>
+    <div class="item"><div class="box dial">dial face</div><div class="tok">--shadow-dial</div></div>
+    <div class="item"><div class="box well">well</div><div class="tok">--shadow-well</div></div>
+  </div>
+</body>
+</html>

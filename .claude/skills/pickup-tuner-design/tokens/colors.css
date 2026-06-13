@@ -1,0 +1,92 @@
+/* ===========================================================================
+   Pickup Tuner — Color tokens  (ANALOG VU direction)
+   --------------------------------------------------------------------------
+   A vintage outboard / amplifier faceplate. A dark TWEED CHASSIS frames warm
+   CREAM faceplate panels and IVORY instrument-dial faces. Accents are a small
+   metallic/enamel set: brass, oxblood red, olive green, signal amber.
+   Color carries meaning on the meters & grid; everything else is material.
+   =========================================================================== */
+
+:root {
+  /* --- Chassis (the dark tweed cabinet behind everything) ----------------- */
+  --chassis:        #1a120b; /* deepest cabinet shadow            */
+  --chassis-2:      #241a12; /* base tweed body                   */
+  --chassis-3:      #2e2218; /* lit top of the radial chassis     */
+  --chassis-line:   #0d0907; /* seams / panel gaps                */
+
+  /* --- Faceplate (the cream control panels) ------------------------------- */
+  --plate:          #efe4ca; /* faceplate top (gradient start)    */
+  --plate-2:        #e0d2b0; /* faceplate bottom (gradient end)   */
+  --plate-edge:     #c9bb98; /* engraved hairline border          */
+  --plate-hi:       rgba(255,255,255,0.55); /* top bevel highlight */
+
+  /* --- Dial faces (ivory instrument windows: VU & tuner) ------------------ */
+  --dial:           #f6eed8; /* dial face top                     */
+  --dial-2:         #e9dcbb; /* dial face bottom                  */
+  --dial-edge:      #cabd9a; /* dial bezel                        */
+  --well:           #1c140d; /* recessed dark inset (text fields) */
+
+  /* --- Ink (text on cream) ------------------------------------------------ */
+  --ink:            #2c2114; /* primary ink on faceplate          */
+  --ink-strong:     #241b10; /* dial note / high-contrast figures */
+  --ink-dim:        #8a7a56; /* engraved captions, scale numbers  */
+  --ink-faint:      #b1a079; /* empty placeholder, hairline ticks */
+
+  /* --- Lettering on the dark chassis -------------------------------------- */
+  --chassis-ink:    #e8dcc0; /* wordmark / titles on tweed        */
+  --chassis-dim:    #9a8763; /* sub-lettering on tweed            */
+
+  /* --- Metallic / enamel accents (the only chromatic voices) -------------- */
+  --brass:          #caa24a; /* power lamp, model plate, selection */
+  --brass-deep:     #6e5d34; /* brass engraved edge               */
+  --olive:          #6aa043; /* IN TUNE / balanced lamp (enamel)  */
+  --olive-deep:     #3f7a32; /* olive needle / deep state         */
+  --oxblood:        #b0392c; /* VU red zone, clip, error          */
+  --amber:          #d6a24e; /* caution / getting hot             */
+
+  /* --- Screws (rack-ear hardware) ----------------------------------------- */
+  --screw-hi:       #6a655a;
+  --screw-lo:       #2a241b;
+
+  /* --- Heatmap cell enamels (vivid, dark ink reads on top) ---------------- */
+  --cell-balanced:  #8aa857; /* clear vintage green — leave alone */
+  --cell-close:     #e2b54c; /* gold — within ~4x band            */
+  --cell-off:       #c8694f; /* terracotta — beyond               */
+  --cell-empty:     #ded0ad; /* un-captured (dim faceplate)       */
+
+  /* =========================================================================
+     Semantic aliases — reference THESE in components.
+     ========================================================================= */
+  --surface-app:      var(--chassis-2);   /* window = tweed chassis */
+  --surface-card:     var(--plate);       /* faceplate panel        */
+  --surface-card-2:   var(--plate-2);
+  --surface-dial:     var(--dial);        /* VU / tuner dial face   */
+  --surface-dial-2:   var(--dial-2);
+  --surface-well:     var(--well);        /* recessed dark inset    */
+  --surface-control:  #e7d9b9;            /* button face on plate   */
+  --surface-hover:    #f1e6cb;            /* button hover (lighter) */
+
+  --text-primary:     var(--ink);
+  --text-strong:      var(--ink-strong);
+  --text-muted:       var(--ink-dim);
+  --text-disabled:    var(--ink-faint);
+  --text-on-chassis:  var(--chassis-ink);
+  --text-on-chassis-dim: var(--chassis-dim);
+
+  --status-ok:        var(--olive);
+  --status-armed:     var(--amber);
+  --status-warn:      var(--amber);
+  --status-danger:    var(--oxblood);
+  --accent-brass:     var(--brass);
+  --ring-focus:       var(--brass-deep);
+
+  /* heatmap by verdict */
+  --heat-balanced:    var(--cell-balanced);
+  --heat-close:       var(--cell-close);
+  --heat-off:         var(--cell-off);
+  --heat-empty:       var(--cell-empty);
+
+  /* meter zones (level VU) */
+  --zone-ok:          var(--olive);
+  --zone-hot:         var(--oxblood);
+}

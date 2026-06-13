@@ -1,0 +1,402 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/forms/**",
+              "components/instruments/**",
+              "components/layout/**",
+              "explorations/**",
+              "ui_kits/pickup-tuner/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Oswald|Spectral|JetBrains Mono))/i]",
+        "message": "Font not provided by the design system. Available: Oswald, Spectral, JetBrains Mono."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|size|tone|disabled|onClick|style|key|ref|className|style|children)$/]",
+        "message": "<Button> doesn't accept that prop. Declared props: children, size, tone, disabled, onClick, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:default|small)$/]",
+        "message": "<Button> size must be one of 'default' | 'small'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:neutral|olive|amber|red|brass)$/]",
+        "message": "<Button> tone must be one of 'neutral' | 'olive' | 'amber' | 'red' | 'brass'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Checkbox'] > JSXAttribute > JSXIdentifier[name!=/^(?:checked|label|onChange|disabled|style|key|ref|className|style|children)$/]",
+        "message": "<Checkbox> doesn't accept that prop. Declared props: checked, label, onChange, disabled, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='GridCell'] > JSXAttribute > JSXIdentifier[name!=/^(?:delta|level|balance|selected|clipped|onClick|style|key|ref|className|style|children)$/]",
+        "message": "<GridCell> doesn't accept that prop. Declared props: delta, level, balance, selected, clipped, onClick, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Meter'] > JSXAttribute > JSXIdentifier[name!=/^(?:rms|hold|height|style|key|ref|className|style|children)$/]",
+        "message": "<Meter> doesn't accept that prop. Declared props: rms, hold, height, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Panel'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|action|children|style|key|ref|className|style|children)$/]",
+        "message": "<Panel> doesn't accept that prop. Declared props: label, action, children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SectionLabel'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|style|key|ref|className|style|children)$/]",
+        "message": "<SectionLabel> doesn't accept that prop. Declared props: children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SegmentedToggle'] > JSXAttribute > JSXIdentifier[name!=/^(?:options|value|onChange|style|key|ref|className|style|children)$/]",
+        "message": "<SegmentedToggle> doesn't accept that prop. Declared props: options, value, onChange, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Select'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|value|options|onChange|placeholder|style|key|ref|className|style|children)$/]",
+        "message": "<Select> doesn't accept that prop. Declared props: label, value, options, onChange, placeholder, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Slider'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|min|max|step|label|suffix|onChange|style|key|ref|className|style|children)$/]",
+        "message": "<Slider> doesn't accept that prop. Declared props: value, min, max, step, label, suffix, onChange, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StatusBadge'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|tone|lamp|strong|onDark|style|key|ref|className|style|children)$/]",
+        "message": "<StatusBadge> doesn't accept that prop. Declared props: children, tone, lamp, strong, onDark, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StatusBadge'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:muted|olive|green|amber|red|brass)$/]",
+        "message": "<StatusBadge> tone must be one of 'muted' | 'olive' | 'green' | 'amber' | 'red' | 'brass'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Stepper'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|min|max|onChange|label|style|key|ref|className|style|children)$/]",
+        "message": "<Stepper> doesn't accept that prop. Declared props: value, min, max, onChange, label, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TextField'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|onChange|placeholder|width|disabled|style|key|ref|className|style|children)$/]",
+        "message": "<TextField> doesn't accept that prop. Declared props: value, onChange, placeholder, width, disabled, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='NoteReading'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|octave|cents|frequency|key|ref|className|style|children)$/]",
+        "message": "<NoteReading> doesn't accept that prop. Declared props: name, octave, cents, frequency."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "Button": {
+        "replaces": []
+      },
+      "Checkbox": {
+        "replaces": []
+      },
+      "GridCell": {
+        "replaces": []
+      },
+      "Meter": {
+        "replaces": []
+      },
+      "Panel": {
+        "replaces": []
+      },
+      "SectionLabel": {
+        "replaces": []
+      },
+      "SegmentedToggle": {
+        "replaces": []
+      },
+      "Select": {
+        "replaces": []
+      },
+      "Slider": {
+        "replaces": []
+      },
+      "StatusBadge": {
+        "replaces": []
+      },
+      "Stepper": {
+        "replaces": []
+      },
+      "TextField": {
+        "replaces": []
+      },
+      "NoteReading": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--accent-brass",
+      "--amber",
+      "--brass",
+      "--brass-deep",
+      "--cell-balanced",
+      "--cell-close",
+      "--cell-empty",
+      "--cell-h",
+      "--cell-off",
+      "--cell-w",
+      "--chassis",
+      "--chassis-2",
+      "--chassis-3",
+      "--chassis-dim",
+      "--chassis-ink",
+      "--chassis-line",
+      "--config-panel-w",
+      "--control-h",
+      "--control-pad-x",
+      "--control-pad-y",
+      "--dial",
+      "--dial-2",
+      "--dial-edge",
+      "--field-h",
+      "--font-display",
+      "--font-mono",
+      "--font-ui",
+      "--grad-chassis",
+      "--grad-dial",
+      "--grad-plate",
+      "--grid-gap",
+      "--heat-balanced",
+      "--heat-close",
+      "--heat-empty",
+      "--heat-off",
+      "--ink",
+      "--ink-dim",
+      "--ink-faint",
+      "--ink-strong",
+      "--leading-normal",
+      "--leading-tight",
+      "--olive",
+      "--olive-deep",
+      "--oxblood",
+      "--plate",
+      "--plate-2",
+      "--plate-edge",
+      "--plate-hi",
+      "--radius-lg",
+      "--radius-md",
+      "--radius-sm",
+      "--ring-focus",
+      "--screw-hi",
+      "--screw-lo",
+      "--shadow-btn",
+      "--shadow-cell",
+      "--shadow-chassis",
+      "--shadow-dial",
+      "--shadow-plate",
+      "--shadow-well",
+      "--space-1",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--space-6",
+      "--space-7",
+      "--space-8",
+      "--status-armed",
+      "--status-danger",
+      "--status-ok",
+      "--status-warn",
+      "--surface-app",
+      "--surface-card",
+      "--surface-card-2",
+      "--surface-control",
+      "--surface-dial",
+      "--surface-dial-2",
+      "--surface-hover",
+      "--surface-well",
+      "--text-2xs",
+      "--text-base",
+      "--text-disabled",
+      "--text-display",
+      "--text-lg",
+      "--text-md",
+      "--text-micro",
+      "--text-muted",
+      "--text-on-chassis",
+      "--text-on-chassis-dim",
+      "--text-primary",
+      "--text-sm",
+      "--text-strong",
+      "--text-xl",
+      "--text-xs",
+      "--topbar-h",
+      "--tracking-brand",
+      "--tracking-label",
+      "--tracking-normal",
+      "--tracking-wide",
+      "--type-body",
+      "--type-caption",
+      "--type-display",
+      "--type-heading",
+      "--type-label",
+      "--type-readout",
+      "--type-readout-sm",
+      "--type-title",
+      "--weight-light",
+      "--weight-medium",
+      "--weight-regular",
+      "--weight-strong",
+      "--well",
+      "--zone-hot",
+      "--zone-ok"
+    ],
+    "tokenKinds": {
+      "--chassis": "color",
+      "--chassis-2": "color",
+      "--chassis-3": "color",
+      "--chassis-line": "color",
+      "--plate": "color",
+      "--plate-2": "color",
+      "--plate-edge": "color",
+      "--plate-hi": "color",
+      "--dial": "color",
+      "--dial-2": "color",
+      "--dial-edge": "color",
+      "--well": "color",
+      "--ink": "color",
+      "--ink-strong": "color",
+      "--ink-dim": "color",
+      "--ink-faint": "color",
+      "--chassis-ink": "color",
+      "--chassis-dim": "color",
+      "--brass": "color",
+      "--brass-deep": "color",
+      "--olive": "color",
+      "--olive-deep": "color",
+      "--oxblood": "color",
+      "--amber": "color",
+      "--screw-hi": "color",
+      "--screw-lo": "color",
+      "--cell-balanced": "color",
+      "--cell-close": "color",
+      "--cell-off": "color",
+      "--cell-empty": "color",
+      "--surface-app": "color",
+      "--surface-card": "color",
+      "--surface-card-2": "color",
+      "--surface-dial": "color",
+      "--surface-dial-2": "color",
+      "--surface-well": "color",
+      "--surface-control": "color",
+      "--surface-hover": "color",
+      "--text-primary": "font",
+      "--text-strong": "font",
+      "--text-muted": "font",
+      "--text-disabled": "font",
+      "--text-on-chassis": "font",
+      "--text-on-chassis-dim": "font",
+      "--status-ok": "color",
+      "--status-armed": "color",
+      "--status-warn": "color",
+      "--status-danger": "color",
+      "--accent-brass": "color",
+      "--ring-focus": "color",
+      "--heat-balanced": "color",
+      "--heat-close": "color",
+      "--heat-off": "color",
+      "--heat-empty": "color",
+      "--zone-ok": "color",
+      "--zone-hot": "color",
+      "--font-ui": "font",
+      "--font-display": "font",
+      "--font-mono": "font",
+      "--text-micro": "font",
+      "--text-2xs": "font",
+      "--text-xs": "font",
+      "--text-sm": "font",
+      "--text-base": "font",
+      "--text-md": "font",
+      "--text-lg": "font",
+      "--text-xl": "font",
+      "--text-display": "font",
+      "--weight-light": "font",
+      "--weight-regular": "font",
+      "--weight-medium": "font",
+      "--weight-strong": "font",
+      "--tracking-label": "font",
+      "--tracking-brand": "font",
+      "--tracking-wide": "font",
+      "--tracking-normal": "font",
+      "--leading-tight": "font",
+      "--leading-normal": "font",
+      "--type-display": "font",
+      "--type-heading": "font",
+      "--type-title": "font",
+      "--type-body": "font",
+      "--type-label": "font",
+      "--type-caption": "font",
+      "--type-readout": "font",
+      "--type-readout-sm": "font",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--space-6": "spacing",
+      "--space-7": "spacing",
+      "--space-8": "spacing",
+      "--radius-sm": "radius",
+      "--radius-md": "radius",
+      "--radius-lg": "radius",
+      "--control-pad-y": "spacing",
+      "--control-pad-x": "spacing",
+      "--control-h": "spacing",
+      "--field-h": "spacing",
+      "--cell-w": "spacing",
+      "--cell-h": "spacing",
+      "--grid-gap": "spacing",
+      "--config-panel-w": "spacing",
+      "--topbar-h": "spacing",
+      "--shadow-plate": "shadow",
+      "--shadow-dial": "shadow",
+      "--shadow-well": "shadow",
+      "--shadow-cell": "shadow",
+      "--shadow-btn": "shadow",
+      "--shadow-chassis": "shadow",
+      "--grad-chassis": "color",
+      "--grad-plate": "color",
+      "--grad-dial": "color"
+    },
+    "fontFamilies": [
+      "JetBrains Mono",
+      "Oswald",
+      "Spectral"
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+<!-- @dsCard group="Colors" viewport="700x190" name="Heatmap enamels" subtitle="Vivid go / caution / stop chips — dark ink reads on top" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; background: var(--surface-card); color: var(--text-primary);
+         font-family: var(--font-ui); padding: 22px; }
+  .row { display: flex; gap: 12px; }
+  .sw { flex: 1; text-align: center; }
+  .cell { height: 44px; width: 88px; margin: 0 auto; border-radius: var(--radius-sm);
+          box-shadow: var(--shadow-cell);
+          display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .cell .big { font-family: var(--font-mono); font-size: var(--text-md); color: var(--ink-strong); }
+  .cell .sub { font-family: var(--font-mono); font-size: var(--text-micro); color: rgba(36,27,16,0.66); }
+  .name { font-size: var(--text-sm); margin-top: 10px; }
+  .hex { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="cell" style="background: var(--heat-balanced)"><span class="big">&#10003;</span><span class="sub">-14.2 dB</span></div>
+      <div class="name">Balanced</div><div class="hex">#8AA857</div></div>
+    <div class="sw"><div class="cell" style="background: var(--heat-close)"><span class="big">&#8595; 1.5</span><span class="sub">-12.7 dB</span></div>
+      <div class="name">Within ~4&times;</div><div class="hex">#E2B54C</div></div>
+    <div class="sw"><div class="cell" style="background: var(--heat-off)"><span class="big">&#8593; 3.2</span><span class="sub">-17.4 dB</span></div>
+      <div class="name">Beyond</div><div class="hex">#C8694F</div></div>
+    <div class="sw"><div class="cell" style="background: var(--heat-empty)"><span class="big" style="color: var(--ink-faint)">&mdash;</span></div>
+      <div class="name">Empty</div><div class="hex">#DED0AD</div></div>
+  </div>
+</body>
+</html>

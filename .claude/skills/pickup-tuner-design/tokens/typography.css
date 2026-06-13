@@ -1,0 +1,57 @@
+/* ===========================================================================
+   Pickup Tuner — Typography tokens  (ANALOG VU direction)
+   --------------------------------------------------------------------------
+   Three voices, strict roles:
+     • Oswald  (condensed grotesque) — faceplate lettering: titles, section
+       captions, control labels, row names. Tall & narrow like silkscreen.
+     • Spectral (warm serif)         — the big tuner note + the "VU" dial mark.
+       The single "engraved instrument" moment; nothing else uses serif.
+     • JetBrains Mono                — EVERY numeral (dB / Hz / cents / samples)
+       so readings align in fixed columns like a hardware display.
+   =========================================================================== */
+
+:root {
+  /* --- Families ------------------------------------------------------------ */
+  --font-ui:      "Oswald", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Spectral", "Iowan Old Style", Georgia, serif;
+  --font-mono:    "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, Menlo, monospace;
+
+  /* --- Type scale ---------------------------------------------------------- */
+  --text-micro:   9px;   /* cell dBFS sub-readout, dial scale numbers */
+  --text-2xs:     11px;  /* SECTION CAPTION                          */
+  --text-xs:      12px;  /* dial sub-readout, hints                  */
+  --text-sm:      13px;  /* control labels, row names                */
+  --text-base:    14px;  /* body / mono readouts                     */
+  --text-md:      15px;  /* app title, grid cell instruction         */
+  --text-lg:      17px;  /* config-panel heading                     */
+  --text-xl:      20px;  /* large heading                            */
+  --text-display: 50px;  /* tuner note (Spectral)                    */
+
+  /* --- Weights ------------------------------------------------------------- */
+  --weight-light:   300;
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-strong:  600;
+
+  /* --- Tracking (faceplate lettering is generously spaced silkscreen) ------ */
+  --tracking-label:  0.2em;   /* SECTION CAPTIONS            */
+  --tracking-brand:  0.16em;  /* wordmark                   */
+  --tracking-wide:   0.32em;  /* sub-lettering on chassis   */
+  --tracking-normal: 0.02em;
+
+  /* --- Line heights -------------------------------------------------------- */
+  --leading-tight:  1.05;
+  --leading-normal: 1.4;
+
+  /* =========================================================================
+     Semantic roles
+     ========================================================================= */
+  --type-display:  var(--weight-strong) var(--text-display)/var(--leading-tight) var(--font-display);
+  --type-heading:  var(--weight-strong) var(--text-lg)/var(--leading-tight) var(--font-ui);
+  --type-title:    var(--weight-strong) var(--text-md)/var(--leading-tight) var(--font-ui);
+  --type-body:     var(--weight-regular) var(--text-base)/var(--leading-normal) var(--font-ui);
+  --type-label:    var(--weight-medium) var(--text-sm)/var(--leading-normal) var(--font-ui);
+  --type-caption:  var(--weight-strong) var(--text-2xs)/var(--leading-normal) var(--font-ui);
+  --type-readout:  var(--weight-regular) var(--text-base)/var(--leading-tight) var(--font-mono);
+  --type-readout-sm: var(--weight-regular) var(--text-micro)/var(--leading-tight) var(--font-mono);
+}

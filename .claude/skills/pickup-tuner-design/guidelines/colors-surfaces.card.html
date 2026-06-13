@@ -1,0 +1,30 @@
+<!-- @dsCard group="Colors" viewport="700x210" name="Chassis & faceplate" subtitle="Dark tweed cabinet frames warm cream control panels" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; background: var(--grad-chassis); font-family: var(--font-ui); padding: 22px; }
+  .row { display: flex; gap: 12px; }
+  .sw { flex: 1; }
+  .chip { height: 58px; border-radius: var(--radius-sm); border: 1px solid rgba(0,0,0,0.3); }
+  .name { font-size: var(--text-sm); margin-top: 10px; color: var(--text-on-chassis); }
+  .hex { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-on-chassis-dim); margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background: var(--chassis)"></div>
+      <div class="name">Chassis shadow</div><div class="hex">#1A120B</div></div>
+    <div class="sw"><div class="chip" style="background: var(--chassis-2)"></div>
+      <div class="name">Tweed body</div><div class="hex">#241A12</div></div>
+    <div class="sw"><div class="chip" style="background: var(--grad-plate)"></div>
+      <div class="name">Faceplate</div><div class="hex">#EFE4CA</div></div>
+    <div class="sw"><div class="chip" style="background: var(--grad-dial)"></div>
+      <div class="name">Dial face</div><div class="hex">#F6EED8</div></div>
+    <div class="sw"><div class="chip" style="background: var(--well)"></div>
+      <div class="name">Well</div><div class="hex">#1C140D</div></div>
+  </div>
+</body>
+</html>

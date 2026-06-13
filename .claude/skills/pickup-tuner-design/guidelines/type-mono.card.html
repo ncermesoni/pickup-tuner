@@ -1,0 +1,26 @@
+<!-- @dsCard group="Type" viewport="700x210" name="Monospace readouts" subtitle="JetBrains Mono — every numeral aligns like a meter readout" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; background: var(--grad-plate); color: var(--ink-strong);
+         font-family: var(--font-mono); padding: 24px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .line { display: flex; align-items: baseline; gap: 16px; }
+  .meta { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--text-muted); margin-left: auto; }
+  .big { font-size: var(--text-base); font-variant-numeric: tabular-nums; }
+  .mid { font-size: var(--text-md); font-variant-numeric: tabular-nums; }
+  .small { font-size: var(--text-micro); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .dim { color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <div class="line"><span class="big">peak&nbsp;&minus;6.4&nbsp;&nbsp;hold&nbsp;&minus;3.1&nbsp;&nbsp;<span class="dim">rms&nbsp;&minus;14.2 dBFS</span></span><span class="meta">14px readout</span></div>
+    <div class="line"><span class="mid">&#8595;&nbsp;1.5&nbsp;&nbsp;&#8593;&nbsp;0.8&nbsp;&nbsp;&#10003;</span><span class="meta">15px cell instruction</span></div>
+    <div class="line"><span class="small">&minus;1 cents &middot; 109.9 Hz &middot; A4=440</span><span class="meta">9px sub-readout</span></div>
+  </div>
+</body>
+</html>

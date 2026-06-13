@@ -1,0 +1,23 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Ink on cream" subtitle="Dark ink primary, engraved-caption dim, faint placeholder" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; background: var(--grad-plate); font-family: var(--font-ui); padding: 24px; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .line { display: flex; align-items: baseline; gap: 16px; }
+  .label { font-size: var(--text-lg); }
+  .meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-left: auto; }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <div class="line"><span class="label" style="color: var(--ink-strong)">Strong &mdash; dial figures & note</span><span class="meta">#241B10</span></div>
+    <div class="line"><span class="label" style="color: var(--ink)">Primary &mdash; labels & body</span><span class="meta">#2C2114</span></div>
+    <div class="line"><span class="label" style="color: var(--text-muted)">Dim &mdash; engraved captions, scale</span><span class="meta">#8A7A56</span></div>
+    <div class="line"><span class="label" style="color: var(--text-disabled)">Faint &mdash; the &mdash; placeholder</span><span class="meta">#B1A079</span></div>
+  </div>
+</body>
+</html>
