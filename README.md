@@ -149,3 +149,16 @@ repository and may not be redistributed; download it from Steinberg and
 accept their license to build with ASIO support.
 
 ASIO is a trademark and software of Steinberg Media Technologies GmbH.
+
+The bundled fonts in `assets/fonts/` — **Oswald**, **Spectral**, and
+**JetBrains Mono** — are licensed under the SIL Open Font License 1.1
+(see the `*-OFL.txt` files alongside them).
+
+## Design
+
+The **Analog VU** visual identity (vintage outboard / amplifier faceplate)
+is captured as a portable design system under
+`.claude/skills/pickup-tuner-design/` — tokens, components, a clickable UI
+kit, and a `SKILL.md` entry point. Invoke it in a Claude Code session
+("use the pickup-tuner-design skill") to design new on-brand surfaces. The
+Rust UI in `src/ui/` is the production implementation of that system.

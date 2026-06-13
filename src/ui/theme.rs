@@ -1,126 +1,262 @@
-//! Visual identity: dark workbench / rack-gear. One warm near-black base;
-//! amber and signal-green are the only accent voices, matching what those
-//! colors mean in the app (armed / balanced / hot). All numerals render in
-//! monospace so readings align like a hardware display.
+//! Visual identity: **Analog VU** — a vintage outboard / amplifier faceplate.
+//! A dark tweed chassis frames warm cream faceplate panels and ivory dial
+//! faces; real analog instruments (a dual-needle VU for level, a centered
+//! needle for tuning). Color carries meaning on the meters and grid
+//! (olive = balanced / in tune, amber = armed / caution, oxblood = hot / clip,
+//! brass = selection / hardware); everything else is material.
+//!
+//! Tokens mirror the `pickup-tuner-design` skill (Analog VU direction).
 
 use eframe::egui;
+use egui::Color32;
 
-pub const BG_WINDOW: egui::Color32 = egui::Color32::from_rgb(13, 13, 15);
-pub const BG_PANEL: egui::Color32 = egui::Color32::from_rgb(19, 19, 23);
-pub const BG_WIDGET: egui::Color32 = egui::Color32::from_rgb(27, 27, 33);
-pub const BG_HOVER: egui::Color32 = egui::Color32::from_rgb(38, 38, 46);
+// --- Chassis (the dark tweed cabinet behind everything) --------------------
+pub const CHASSIS: Color32 = Color32::from_rgb(0x1a, 0x12, 0x0b);
+pub const CHASSIS_2: Color32 = Color32::from_rgb(0x24, 0x1a, 0x12);
+pub const CHASSIS_3: Color32 = Color32::from_rgb(0x2e, 0x22, 0x18);
+pub const CHASSIS_LINE: Color32 = Color32::from_rgb(0x0d, 0x09, 0x07);
 
-pub const TEXT: egui::Color32 = egui::Color32::from_rgb(232, 229, 220);
-pub const TEXT_DIM: egui::Color32 = egui::Color32::from_rgb(138, 134, 124);
+// --- Faceplate (the cream control panels) ----------------------------------
+pub const PLATE: Color32 = Color32::from_rgb(0xef, 0xe4, 0xca);
+pub const PLATE_2: Color32 = Color32::from_rgb(0xe0, 0xd2, 0xb0);
+pub const PLATE_EDGE: Color32 = Color32::from_rgb(0xc9, 0xbb, 0x98);
 
-pub const GREEN: egui::Color32 = egui::Color32::from_rgb(94, 201, 113);
-pub const AMBER: egui::Color32 = egui::Color32::from_rgb(228, 168, 88);
-pub const RED: egui::Color32 = egui::Color32::from_rgb(222, 92, 80);
-pub const FOCUS: egui::Color32 = egui::Color32::from_rgb(130, 180, 230);
+// --- Dial faces (ivory instrument windows: VU & tuner) ---------------------
+pub const DIAL: Color32 = Color32::from_rgb(0xf6, 0xee, 0xd8);
+pub const DIAL_2: Color32 = Color32::from_rgb(0xe9, 0xdc, 0xbb);
+pub const DIAL_EDGE: Color32 = Color32::from_rgb(0xca, 0xbd, 0x9a);
+pub const WELL: Color32 = Color32::from_rgb(0x1c, 0x14, 0x0d);
 
-// Cell backgrounds: the accent hues pulled way down so the readouts on top
-// stay legible.
-pub const GREEN_BG: egui::Color32 = egui::Color32::from_rgb(28, 62, 38);
-pub const AMBER_BG: egui::Color32 = egui::Color32::from_rgb(74, 58, 24);
-pub const RED_BG: egui::Color32 = egui::Color32::from_rgb(84, 33, 30);
-pub const EMPTY_BG: egui::Color32 = egui::Color32::from_rgb(24, 24, 29);
+// --- Ink (text on cream) ---------------------------------------------------
+pub const INK: Color32 = Color32::from_rgb(0x2c, 0x21, 0x14);
+pub const INK_STRONG: Color32 = Color32::from_rgb(0x24, 0x1b, 0x10);
+pub const INK_DIM: Color32 = Color32::from_rgb(0x8a, 0x7a, 0x56);
+pub const INK_FAINT: Color32 = Color32::from_rgb(0xb1, 0xa0, 0x79);
 
-/// Dim section caption, e.g. "LEVEL", "CAPTURE GRID". Letter-spacing isn't
-/// supported by egui, so spaced uppercase does the job.
+// --- Lettering on the dark chassis -----------------------------------------
+pub const CHASSIS_INK: Color32 = Color32::from_rgb(0xe8, 0xdc, 0xc0);
+pub const CHASSIS_DIM: Color32 = Color32::from_rgb(0x9a, 0x87, 0x63);
+
+// --- Metallic / enamel accents (the only chromatic voices) -----------------
+pub const BRASS: Color32 = Color32::from_rgb(0xca, 0xa2, 0x4a);
+pub const BRASS_DEEP: Color32 = Color32::from_rgb(0x6e, 0x5d, 0x34);
+pub const OLIVE: Color32 = Color32::from_rgb(0x6a, 0xa0, 0x43);
+pub const OLIVE_DEEP: Color32 = Color32::from_rgb(0x3f, 0x7a, 0x32);
+pub const OXBLOOD: Color32 = Color32::from_rgb(0xb0, 0x39, 0x2c);
+pub const AMBER: Color32 = Color32::from_rgb(0xd6, 0xa2, 0x4e);
+
+// --- Heatmap cell enamels (vivid; dark ink reads on top) -------------------
+pub const CELL_BALANCED: Color32 = Color32::from_rgb(0x8a, 0xa8, 0x57);
+pub const CELL_CLOSE: Color32 = Color32::from_rgb(0xe2, 0xb5, 0x4c);
+pub const CELL_OFF: Color32 = Color32::from_rgb(0xc8, 0x69, 0x4f);
+pub const CELL_EMPTY: Color32 = Color32::from_rgb(0xde, 0xd0, 0xad);
+
+// --- Control faces ---------------------------------------------------------
+pub const CONTROL: Color32 = Color32::from_rgb(0xe7, 0xd9, 0xb9);
+pub const CONTROL_HOVER: Color32 = Color32::from_rgb(0xf1, 0xe6, 0xcb);
+
+/// Spectral display family (the big tuner note + the "VU" mark only).
+pub fn display_family() -> egui::FontFamily {
+    egui::FontFamily::Name("display".into())
+}
+
+pub fn display_font(size: f32) -> egui::FontId {
+    egui::FontId::new(size, display_family())
+}
+
+fn lerp(a: Color32, b: Color32, t: f32) -> Color32 {
+    let t = t.clamp(0.0, 1.0);
+    let f = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
+    Color32::from_rgb(f(a.r(), b.r()), f(a.g(), b.g()), f(a.b(), b.b()))
+}
+
+/// Paint the dark tweed cabinet — a radial gradient lit from the upper-left,
+/// fading to deep shadow at the edges. This is the app background.
+pub fn paint_chassis(painter: &egui::Painter, rect: egui::Rect) {
+    let focal = egui::pos2(rect.left() + rect.width() * 0.3, rect.top());
+    let max_d = (rect.width().max(rect.height())) * 1.05;
+    let (nx, ny) = (18usize, 12usize);
+    let mut mesh = egui::Mesh::default();
+    for j in 0..=ny {
+        for i in 0..=nx {
+            let x = rect.left() + rect.width() * (i as f32 / nx as f32);
+            let y = rect.top() + rect.height() * (j as f32 / ny as f32);
+            let d = (egui::pos2(x, y) - focal).length() / max_d;
+            mesh.colored_vertex(egui::pos2(x, y), lerp(CHASSIS_3, CHASSIS, d));
+        }
+    }
+    let stride = (nx + 1) as u32;
+    for j in 0..ny as u32 {
+        for i in 0..nx as u32 {
+            let a = j * stride + i;
+            mesh.add_triangle(a, a + 1, a + stride);
+            mesh.add_triangle(a + 1, a + stride + 1, a + stride);
+        }
+    }
+    painter.add(egui::Shape::mesh(mesh));
+}
+
+/// Paint a recessed ivory dial face: ivory fill, a machined bezel, an inner
+/// top highlight and a soft bottom vignette — the look of glass over a printed
+/// scale. Returns the inner rect callers draw their instrument into.
+pub fn paint_dial_face(painter: &egui::Painter, rect: egui::Rect) {
+    let r = 6.0;
+    painter.rect_filled(rect, r, DIAL);
+    // bottom vignette
+    let vign = egui::Rect::from_min_max(
+        egui::pos2(rect.left(), rect.bottom() - rect.height() * 0.45),
+        rect.max,
+    );
+    let mut mesh = egui::Mesh::default();
+    let top = Color32::TRANSPARENT;
+    let bot = Color32::from_rgba_unmultiplied(0x78, 0x60, 0x28, 22);
+    mesh.colored_vertex(vign.left_top(), top);
+    mesh.colored_vertex(vign.right_top(), top);
+    mesh.colored_vertex(vign.left_bottom(), bot);
+    mesh.colored_vertex(vign.right_bottom(), bot);
+    mesh.add_triangle(0, 1, 2);
+    mesh.add_triangle(1, 3, 2);
+    painter.add(egui::Shape::mesh(mesh));
+    // inner top highlight + bezel
+    painter.line_segment(
+        [
+            egui::pos2(rect.left() + r, rect.top() + 1.0),
+            egui::pos2(rect.right() - r, rect.top() + 1.0),
+        ],
+        egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 150)),
+    );
+    painter.rect_stroke(
+        rect,
+        r,
+        egui::Stroke::new(1.0, DIAL_EDGE),
+        egui::StrokeKind::Inside,
+    );
+}
+
+/// A raised cream faceplate panel — wraps every functional block.
+pub fn faceplate_frame() -> egui::Frame {
+    egui::Frame::new()
+        .fill(PLATE)
+        .stroke(egui::Stroke::new(1.0, PLATE_EDGE))
+        .corner_radius(6.0)
+        .inner_margin(egui::Margin::same(13))
+        .shadow(egui::epaint::Shadow {
+            offset: [0, 2],
+            blur: 6,
+            spread: 0,
+            color: Color32::from_black_alpha(90),
+        })
+}
+
+/// Spaced-uppercase engraved caption (Oswald) in dim ink — silkscreen on a
+/// panel. egui has no letter-spacing, so spaced uppercase stands in.
 pub fn section_label(text: &str) -> egui::RichText {
     let spaced: String = text
         .to_uppercase()
         .chars()
         .flat_map(|c| [c, '\u{2009}'])
         .collect();
-    egui::RichText::new(spaced.trim_end()).size(11.0).color(TEXT_DIM)
-}
-
-/// Frame wrapping each functional block (meter, tuner, grid).
-pub fn section_frame() -> egui::Frame {
-    egui::Frame::new()
-        .fill(BG_PANEL)
-        .corner_radius(8.0)
-        .inner_margin(egui::Margin::same(10))
+    egui::RichText::new(spaced.trim_end())
+        .size(11.0)
+        .strong()
+        .color(INK_DIM)
 }
 
 fn load_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
-    // Proportional face + symbol fallback (egui's bundled fonts lack ↑↓✓⚠).
-    let faces = [
-        ("Segoe UI", r"C:\Windows\Fonts\segoeui.ttf"),
-        ("Segoe UI Symbol", r"C:\Windows\Fonts\seguisym.ttf"),
-        // First readable monospace wins; Cascadia ships with Win11/Terminal,
-        // Consolas with every Windows.
-        ("Cascadia Mono", r"C:\Windows\Fonts\CascadiaMono.ttf"),
-        ("Consolas", r"C:\Windows\Fonts\consola.ttf"),
-    ];
-    for (name, path) in faces {
-        if let Ok(bytes) = std::fs::read(path) {
-            fonts
-                .font_data
-                .insert(name.to_owned(), egui::FontData::from_owned(bytes).into());
-        }
+
+    fonts.font_data.insert(
+        "Oswald".to_owned(),
+        egui::FontData::from_static(include_bytes!("../../assets/fonts/Oswald-Variable.ttf")).into(),
+    );
+    fonts.font_data.insert(
+        "JetBrains Mono".to_owned(),
+        egui::FontData::from_static(include_bytes!(
+            "../../assets/fonts/JetBrainsMono-Variable.ttf"
+        ))
+        .into(),
+    );
+    fonts.font_data.insert(
+        "Spectral".to_owned(),
+        egui::FontData::from_static(include_bytes!("../../assets/fonts/Spectral-SemiBold.ttf"))
+            .into(),
+    );
+    // Segoe UI Symbol carries the glyph vocabulary (✓ ↑ ↓ ♭ ♯ ⚠ — ▾ ·) that
+    // the brand faces don't include.
+    if let Ok(bytes) = std::fs::read(r"C:\Windows\Fonts\seguisym.ttf") {
+        fonts
+            .font_data
+            .insert("Segoe UI Symbol".to_owned(), egui::FontData::from_owned(bytes).into());
     }
 
-    if fonts.font_data.contains_key("Segoe UI") {
-        fonts
-            .families
-            .entry(egui::FontFamily::Proportional)
-            .or_default()
-            .insert(0, "Segoe UI".to_owned());
-    }
-    for mono in ["Cascadia Mono", "Consolas"] {
-        if fonts.font_data.contains_key(mono) {
-            fonts
-                .families
-                .entry(egui::FontFamily::Monospace)
-                .or_default()
-                .insert(0, mono.to_owned());
-            break;
-        }
-    }
-    if fonts.font_data.contains_key("Segoe UI Symbol") {
-        for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
-            fonts
-                .families
-                .entry(family)
-                .or_default()
-                .push("Segoe UI Symbol".to_owned());
-        }
-    }
+    // Oswald is the faceplate lettering (Proportional); JetBrains Mono sets
+    // every numeral (Monospace); Spectral is the display note only.
+    fonts.families.insert(
+        egui::FontFamily::Proportional,
+        vec!["Oswald".into(), "Segoe UI Symbol".into()],
+    );
+    fonts.families.insert(
+        egui::FontFamily::Monospace,
+        vec!["JetBrains Mono".into(), "Segoe UI Symbol".into()],
+    );
+    fonts.families.insert(
+        display_family(),
+        vec!["Spectral".into(), "Segoe UI Symbol".into()],
+    );
+
     ctx.set_fonts(fonts);
 }
 
 pub fn apply(ctx: &egui::Context) {
     load_fonts(ctx);
 
-    let mut visuals = egui::Visuals::dark();
-    visuals.window_fill = BG_WINDOW;
-    visuals.panel_fill = BG_WINDOW;
-    visuals.extreme_bg_color = egui::Color32::from_rgb(10, 10, 12);
-    visuals.faint_bg_color = BG_PANEL;
+    let mut v = egui::Visuals::light();
+    v.dark_mode = false;
+    v.window_fill = CHASSIS;
+    v.panel_fill = CHASSIS_2;
+    v.override_text_color = Some(INK);
+    v.extreme_bg_color = WELL; // text-field wells
+    v.faint_bg_color = PLATE_2;
 
-    visuals.widgets.noninteractive.bg_fill = BG_PANEL;
-    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, TEXT);
-    visuals.widgets.inactive.bg_fill = BG_WIDGET;
-    visuals.widgets.inactive.weak_bg_fill = BG_WIDGET;
-    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, TEXT);
-    visuals.widgets.hovered.bg_fill = BG_HOVER;
-    visuals.widgets.hovered.weak_bg_fill = BG_HOVER;
-    visuals.widgets.active.bg_fill = BG_HOVER;
-    visuals.widgets.active.weak_bg_fill = BG_HOVER;
+    // Controls are raised cream chips on the faceplate.
+    let edge = egui::Stroke::new(1.0, PLATE_EDGE);
+    v.widgets.noninteractive.bg_fill = PLATE;
+    v.widgets.noninteractive.weak_bg_fill = PLATE;
+    v.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, INK);
+    v.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, PLATE_EDGE);
 
-    visuals.selection.bg_fill = FOCUS.gamma_multiply(0.35);
-    visuals.selection.stroke = egui::Stroke::new(1.0, FOCUS);
-    visuals.hyperlink_color = FOCUS;
-    visuals.warn_fg_color = AMBER;
-    visuals.error_fg_color = RED;
+    {
+        let w = &mut v.widgets.inactive;
+        w.bg_fill = CONTROL;
+        w.weak_bg_fill = CONTROL;
+        w.fg_stroke = egui::Stroke::new(1.0, INK);
+        w.bg_stroke = edge;
+        w.corner_radius = 4.into();
+    }
+    for w in [&mut v.widgets.hovered, &mut v.widgets.active] {
+        w.bg_fill = CONTROL_HOVER;
+        w.weak_bg_fill = CONTROL_HOVER;
+        w.fg_stroke = egui::Stroke::new(1.0, INK_STRONG);
+        w.bg_stroke = edge;
+        w.corner_radius = 4.into();
+    }
+    v.widgets.open.bg_fill = CONTROL;
+    v.widgets.open.weak_bg_fill = CONTROL;
+    v.widgets.open.fg_stroke = egui::Stroke::new(1.0, INK_STRONG);
+    v.widgets.open.bg_stroke = edge;
 
-    ctx.set_visuals(visuals);
+    // Selection / focus is a brass wash + ring.
+    v.selection.bg_fill = BRASS.gamma_multiply(0.30);
+    v.selection.stroke = egui::Stroke::new(1.0, BRASS_DEEP);
+    v.hyperlink_color = BRASS_DEEP;
+    v.warn_fg_color = AMBER;
+    v.error_fg_color = OXBLOOD;
+    v.window_stroke = egui::Stroke::new(1.0, CHASSIS_LINE);
+
+    ctx.set_visuals(v);
 
     let mut style = (*ctx.style()).clone();
     style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-    style.spacing.button_padding = egui::vec2(10.0, 4.0);
+    style.spacing.button_padding = egui::vec2(10.0, 5.0);
     ctx.set_style(style);
 }

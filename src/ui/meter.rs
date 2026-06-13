@@ -1,29 +1,34 @@
+//! Level meter — a vintage VU needle on an ivory dial face. The dark RMS
+//! needle rests on the level; a thinner brass peak-hold needle (ball tip)
+//! holds the highest peak. The upper end of the arc is an oxblood "hot" zone
+//! where redlining means a hot/clipping signal. Geometry mirrors the
+//! Analog VU `Meter` component.
+
 use crate::dsp::levels::{DB_FLOOR, MeterState, dbfs};
 use crate::ui::theme;
 use eframe::egui;
+use egui::Color32;
 
-const METER_MIN_DB: f32 = -60.0;
-/// Zone boundaries: comfortable / getting hot / clipping territory.
-const AMBER_FROM_DB: f32 = -12.0;
-const RED_FROM_DB: f32 = -3.0;
+const MIN: f32 = -60.0;
+const HOT_FROM: f32 = -6.0;
+// dial geometry, in the design's 200×112 viewBox space
+const CX: f32 = 100.0;
+const CY: f32 = 104.0;
+const R: f32 = 84.0;
 
-fn db_to_norm(db: f32) -> f32 {
-    ((db - METER_MIN_DB) / -METER_MIN_DB).clamp(0.0, 1.0)
+fn norm(db: f32) -> f32 {
+    ((db - MIN) / -MIN).clamp(0.0, 1.0)
+}
+fn ang_of(db: f32) -> f32 {
+    180.0 * (1.0 - norm(db)) // 180° = left (−60) … 0° = right (0)
+}
+fn polar(deg: f32, r: f32) -> egui::Pos2 {
+    let a = deg.to_radians();
+    egui::pos2(CX + r * a.cos(), CY - r * a.sin())
 }
 
-/// Map DB_FLOOR to a readable sentinel instead of -120.0.
 fn display_db(db: f32) -> f32 {
     if db <= DB_FLOOR { -99.9 } else { db }
-}
-
-fn zone_color(db: f32) -> egui::Color32 {
-    if db >= RED_FROM_DB {
-        theme::RED
-    } else if db >= AMBER_FROM_DB {
-        theme::AMBER
-    } else {
-        theme::GREEN
-    }
 }
 
 pub enum MeterAction {
@@ -33,101 +38,125 @@ pub enum MeterAction {
 
 pub fn meter_widget(ui: &mut egui::Ui, meter: &MeterState) -> MeterAction {
     let mut action = MeterAction::None;
-    let peak_live_db = dbfs(meter.peak_live);
-    let peak_hold_db = dbfs(meter.peak_hold);
+    let peak_db = dbfs(meter.peak_live);
+    let hold_db = dbfs(meter.peak_hold);
     let rms_db = dbfs(meter.rms());
 
+    // header: section caption + reset-hold action
     ui.horizontal(|ui| {
         ui.label(theme::section_label("Level"));
-        ui.monospace(format!("peak {:6.1}", display_db(peak_live_db)));
-        ui.monospace(format!("hold {:6.1}", display_db(peak_hold_db)));
-        ui.monospace(format!("rms {:6.1} dBFS", display_db(rms_db)));
-        if meter.clipped {
-            ui.colored_label(theme::RED, egui::RichText::new("CLIP").strong());
-        }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.small_button("Reset hold").clicked() {
+            if ui.button("Reset hold").clicked() {
                 action = MeterAction::ResetHold;
             }
         });
     });
 
-    let desired = egui::vec2(ui.available_width(), 46.0);
-    let (rect, _) = ui.allocate_exact_size(desired, egui::Sense::hover());
+    // mono readout row
+    ui.horizontal(|ui| {
+        let dim = egui::TextFormat::simple(egui::FontId::monospace(13.0), theme::INK_DIM);
+        let strong = egui::TextFormat::simple(egui::FontId::monospace(13.0), theme::INK_STRONG);
+        for (lbl, val) in [
+            ("peak ", display_db(peak_db)),
+            ("hold ", display_db(hold_db)),
+            ("rms ", display_db(rms_db)),
+        ] {
+            let mut job = egui::text::LayoutJob::default();
+            job.append(lbl, 0.0, dim.clone());
+            job.append(&format!("{val:.1}"), 0.0, strong.clone());
+            ui.label(job);
+        }
+        ui.label(egui::RichText::new("dBFS").monospace().color(theme::INK_DIM));
+        if meter.clipped {
+            ui.colored_label(theme::OXBLOOD, egui::RichText::new("CLIP").strong());
+        }
+    });
+
+    ui.add_space(4.0);
+
+    // dial face
+    let (rect, _) =
+        ui.allocate_exact_size(egui::vec2(ui.available_width(), 120.0), egui::Sense::hover());
+    theme::paint_dial_face(&ui.painter().clone(), rect);
     let painter = ui.painter_at(rect);
-    let bar = egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x, rect.max.y - 14.0));
-    painter.rect_filled(bar, 4.0, egui::Color32::from_rgb(10, 10, 12));
 
-    // Zone track: dim hints of where amber/red territory begins.
-    let zones = [
-        (METER_MIN_DB, AMBER_FROM_DB, theme::GREEN),
-        (AMBER_FROM_DB, RED_FROM_DB, theme::AMBER),
-        (RED_FROM_DB, 0.0, theme::RED),
-    ];
-    for (from, to, color) in zones {
-        let x0 = bar.min.x + bar.width() * db_to_norm(from);
-        let x1 = bar.min.x + bar.width() * db_to_norm(to);
-        painter.rect_filled(
-            egui::Rect::from_min_max(
-                egui::pos2(x0, bar.bottom() - 3.0),
-                egui::pos2(x1, bar.bottom()),
-            ),
-            0.0,
-            color.gamma_multiply(0.35),
-        );
-    }
+    // map the 200×112 viewBox uniformly into the dial, centered
+    let scale = (rect.width() / 200.0).min(rect.height() / 112.0);
+    let ox = rect.center().x - 100.0 * scale;
+    let oy = rect.top() + (rect.height() - 112.0 * scale) * 0.5;
+    let to_screen = |p: egui::Pos2| egui::pos2(ox + p.x * scale, oy + p.y * scale);
+    let s = |w: f32| w * scale;
 
-    // RMS fill, colored by the zone it sits in.
-    let rms_width = bar.width() * db_to_norm(rms_db);
-    if rms_width > 0.5 {
-        painter.rect_filled(
-            egui::Rect::from_min_size(bar.min, egui::vec2(rms_width, bar.height() - 4.0)),
-            4.0,
-            zone_color(rms_db).gamma_multiply(0.55),
-        );
-    }
-    // Live peak: bright marker in its zone color.
-    let peak_x = bar.min.x + bar.width() * db_to_norm(peak_live_db);
-    painter.line_segment(
-        [
-            egui::pos2(peak_x, bar.top() + 2.0),
-            egui::pos2(peak_x, bar.bottom() - 4.0),
-        ],
-        egui::Stroke::new(2.0, zone_color(peak_live_db)),
-    );
-    // Peak hold: white marker, the number you capture.
-    let hold_x = bar.min.x + bar.width() * db_to_norm(peak_hold_db);
-    painter.line_segment(
-        [
-            egui::pos2(hold_x, bar.top()),
-            egui::pos2(hold_x, bar.bottom()),
-        ],
-        egui::Stroke::new(2.0, theme::TEXT),
-    );
+    let arc = |from: f32, to: f32, r: f32| -> Vec<egui::Pos2> {
+        let steps = 48;
+        (0..=steps)
+            .map(|i| {
+                let t = i as f32 / steps as f32;
+                to_screen(polar(from + (to - from) * t, r))
+            })
+            .collect()
+    };
 
-    // Labeled scale below the bar.
-    for tick in (METER_MIN_DB as i32..=0).step_by(10) {
-        let tick_x = bar.min.x + bar.width() * db_to_norm(tick as f32);
+    // baseline arc (−60 … 0  ⇒  180° … 0°)
+    painter.add(egui::Shape::line(
+        arc(180.0, 0.0, R),
+        egui::Stroke::new(s(2.0), theme::PLATE_EDGE),
+    ));
+    // oxblood hot zone
+    painter.add(egui::Shape::line(
+        arc(ang_of(HOT_FROM), ang_of(0.0), R),
+        egui::Stroke::new(s(3.5), theme::OXBLOOD),
+    ));
+
+    // ticks
+    for v in [-60.0f32, -40.0, -20.0, -10.0, -6.0, -3.0, 0.0] {
+        let a = ang_of(v);
+        let hot = v >= HOT_FROM;
         painter.line_segment(
             [
-                egui::pos2(tick_x, bar.bottom()),
-                egui::pos2(tick_x, bar.bottom() + 3.0),
+                to_screen(polar(a, R)),
+                to_screen(polar(a, if hot { 73.0 } else { 76.0 })),
             ],
-            egui::Stroke::new(1.0, theme::TEXT_DIM),
-        );
-        let align = if tick == 0 {
-            egui::Align2::RIGHT_TOP
-        } else {
-            egui::Align2::CENTER_TOP
-        };
-        painter.text(
-            egui::pos2(tick_x, bar.bottom() + 4.0),
-            align,
-            format!("{tick}"),
-            egui::FontId::monospace(9.0),
-            theme::TEXT_DIM,
+            egui::Stroke::new(s(if hot { 1.5 } else { 1.0 }), if hot { theme::OXBLOOD } else { theme::INK_DIM }),
         );
     }
+    // a couple of scale numbers
+    for (v, lbl) in [(-20.0f32, "-20"), (0.0, "0")] {
+        painter.text(
+            to_screen(polar(ang_of(v), 62.0)),
+            egui::Align2::CENTER_CENTER,
+            lbl,
+            egui::FontId::monospace(s(9.0).max(7.0)),
+            theme::INK_DIM,
+        );
+    }
+    // VU mark (Spectral italic feel — display family)
+    painter.text(
+        to_screen(egui::pos2(100.0, 44.0)),
+        egui::Align2::CENTER_CENTER,
+        "VU",
+        theme::display_font(s(15.0).max(11.0)),
+        theme::INK_DIM,
+    );
+
+    let hub = to_screen(egui::pos2(CX, CY));
+
+    // peak-hold needle (thinner, brass) — sits behind the RMS needle
+    if hold_db > MIN {
+        let tip = to_screen(polar(ang_of(hold_db), 72.0));
+        painter.line_segment([hub, tip], egui::Stroke::new(s(1.6), theme::BRASS));
+        painter.circle(tip, s(2.6), theme::BRASS, egui::Stroke::new(s(0.8), theme::BRASS_DEEP));
+    }
+    // RMS needle (dark ink)
+    let rms_tip = to_screen(polar(ang_of(rms_db), 74.0));
+    painter.line_segment([hub, rms_tip], egui::Stroke::new(s(2.4), theme::INK_STRONG));
+    // hub cap
+    painter.circle(
+        hub,
+        s(5.5),
+        Color32::from_rgb(0x3a, 0x2a, 0x1a),
+        egui::Stroke::new(s(1.0), Color32::from_rgb(0x1c, 0x14, 0x0c)),
+    );
 
     action
 }

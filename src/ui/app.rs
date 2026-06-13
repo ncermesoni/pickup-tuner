@@ -8,6 +8,7 @@ use crate::model::settings::Settings;
 use crate::ui::config::{ConfigAction, DeviceInfo, config_panel};
 use crate::ui::grid::{GridAction, GridUiState, grid_widget};
 use crate::ui::meter::{MeterAction, meter_widget};
+use crate::ui::theme;
 use crate::ui::tuner::tuner_widget;
 use eframe::egui;
 use std::path::PathBuf;
@@ -248,46 +249,138 @@ impl App {
     }
 }
 
+/// The silkscreen bar-graph glyph beside the wordmark — five bars, the middle
+/// one lit brass.
+fn bar_graph_mark(ui: &mut egui::Ui) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(28.0, 18.0), egui::Sense::hover());
+    let painter = ui.painter_at(rect);
+    let heights = [7.0f32, 11.0, 18.0, 12.0, 8.0];
+    for (i, h) in heights.iter().enumerate() {
+        let x = rect.left() + i as f32 * 6.0;
+        let bar = egui::Rect::from_min_max(
+            egui::pos2(x, rect.bottom() - h),
+            egui::pos2(x + 4.0, rect.bottom()),
+        );
+        let color = if i == 2 { theme::BRASS } else { theme::CHASSIS_DIM };
+        painter.rect_filled(bar, 1.0, color);
+    }
+}
+
+/// A small glowing enamel lamp for chassis status text.
+fn chassis_lamp(ui: &mut egui::Ui, color: egui::Color32) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
+    ui.painter().circle_filled(rect.center(), 3.5, color);
+}
+
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let dt = ctx.input(|i| i.stable_dt);
         self.drain_audio(dt);
 
+        // dark tweed cabinet behind everything
+        theme::paint_chassis(
+            &ctx.layer_painter(egui::LayerId::background()),
+            ctx.screen_rect(),
+        );
+
         let mut reconnect_clicked = false;
-        egui::TopBottomPanel::top("status").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new("Pickup Tuner")
-                        .size(15.0)
-                        .strong()
-                        .color(crate::ui::theme::TEXT),
-                );
-                if let Some(err) = &self.engine_error {
-                    ui.colored_label(crate::ui::theme::RED, err);
-                }
-                match &self.engine {
-                    Some(engine) if !engine.is_running() => {
-                        ui.colored_label(crate::ui::theme::AMBER, "audio device stopped");
-                        if ui.button("Reconnect").clicked() {
-                            reconnect_clicked = true;
+        let top = egui::TopBottomPanel::top("status")
+            .frame(
+                egui::Frame::new()
+                    .fill(egui::Color32::TRANSPARENT)
+                    .inner_margin(egui::Margin {
+                        left: 16,
+                        right: 16,
+                        top: 6,
+                        bottom: 6,
+                    }),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    bar_graph_mark(ui);
+                    ui.add_space(4.0);
+                    ui.vertical(|ui| {
+                        ui.spacing_mut().item_spacing.y = 2.0;
+                        ui.label(
+                            egui::RichText::new("PICKUP TUNER")
+                                .size(15.0)
+                                .strong()
+                                .color(theme::CHASSIS_INK),
+                        );
+                        ui.label(
+                            egui::RichText::new("POLE · HEIGHT · BALANCE")
+                                .size(8.5)
+                                .color(theme::CHASSIS_DIM),
+                        );
+                    });
+                    ui.add_space(4.0);
+                    egui::Frame::new()
+                        .stroke(egui::Stroke::new(1.0, theme::BRASS_DEEP))
+                        .corner_radius(3.0)
+                        .inner_margin(egui::Margin::symmetric(6, 2))
+                        .show(ui, |ui| {
+                            ui.label(
+                                egui::RichText::new("PT-V")
+                                    .monospace()
+                                    .size(9.0)
+                                    .color(theme::BRASS),
+                            );
+                        });
+                    ui.add_space(10.0);
+
+                    match &self.engine {
+                        Some(engine) if !engine.is_running() => {
+                            chassis_lamp(ui, theme::AMBER);
+                            ui.label(
+                                egui::RichText::new("audio device stopped").color(theme::AMBER),
+                            );
+                            if ui.button("Reconnect").clicked() {
+                                reconnect_clicked = true;
+                            }
+                        }
+                        Some(_) if self.silent_seconds > 3.0 => {
+                            chassis_lamp(ui, theme::AMBER);
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "no signal on input {} — check cable/channel",
+                                    self.settings.input_channel + 1
+                                ))
+                                .color(theme::AMBER),
+                            );
+                        }
+                        Some(_) => {
+                            chassis_lamp(ui, theme::OLIVE);
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "monitoring · in {}",
+                                    self.settings.input_channel + 1
+                                ))
+                                .color(theme::OLIVE),
+                            );
+                        }
+                        None => {
+                            chassis_lamp(ui, theme::OXBLOOD);
+                            ui.label(
+                                egui::RichText::new("audio engine unavailable")
+                                    .color(theme::OXBLOOD),
+                            );
                         }
                     }
-                    Some(_) if self.silent_seconds > 3.0 => {
-                        ui.colored_label(
-                            crate::ui::theme::AMBER,
-                            format!(
-                                "no signal on input {} — check cable/channel",
-                                self.settings.input_channel + 1
-                            ),
-                        );
+                    if let Some(err) = &self.engine_error {
+                        ui.label(egui::RichText::new(err).color(theme::OXBLOOD));
                     }
-                    Some(_) => {}
-                    None => {
-                        ui.colored_label(crate::ui::theme::RED, "audio engine unavailable");
-                    }
-                }
+                });
             });
-        });
+        // gear seam under the chassis header
+        ctx.layer_painter(egui::LayerId::new(
+            egui::Order::Foreground,
+            egui::Id::new("chassis-seam"),
+        ))
+        .hline(
+            ctx.screen_rect().x_range(),
+            top.response.rect.bottom(),
+            egui::Stroke::new(1.0, theme::CHASSIS_LINE),
+        );
         if reconnect_clicked {
             self.apply_audio_config();
         }
@@ -299,7 +392,13 @@ impl eframe::App for App {
         let info = self.device_info();
         let mut config_action = ConfigAction::None;
         egui::SidePanel::right("config")
-            .default_width(280.0)
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::PLATE)
+                    .inner_margin(egui::Margin::same(16)),
+            )
+            .resizable(false)
+            .exact_width(286.0)
             .show(ctx, |ui| {
                 config_action = config_panel(ui, &mut self.settings, &info);
             });
@@ -308,34 +407,42 @@ impl eframe::App for App {
         }
 
         let mut grid_action = GridAction::None;
-        egui::CentralPanel::default().show(ctx, |ui| {
-            crate::ui::theme::section_frame().show(ui, |ui| {
-                ui.set_min_width(ui.available_width());
-                match meter_widget(ui, &self.meter) {
-                    MeterAction::ResetHold => self.meter.reset_hold(),
-                    MeterAction::None => {}
-                }
+        egui::CentralPanel::default()
+            .frame(
+                egui::Frame::new()
+                    .fill(egui::Color32::TRANSPARENT)
+                    .inner_margin(egui::Margin::same(16)),
+            )
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    theme::faceplate_frame().show(ui, |ui| {
+                        ui.set_min_width(ui.available_width());
+                        match meter_widget(ui, &self.meter) {
+                            MeterAction::ResetHold => self.meter.reset_hold(),
+                            MeterAction::None => {}
+                        }
+                    });
+                    ui.add_space(13.0);
+                    theme::faceplate_frame().show(ui, |ui| {
+                        ui.set_min_width(ui.available_width());
+                        tuner_widget(ui, self.tuner_reading.as_ref());
+                    });
+                    ui.add_space(13.0);
+                    theme::faceplate_frame().show(ui, |ui| {
+                        ui.set_min_width(ui.available_width());
+                        let balance_db = self.settings.balance_db;
+                        grid_action = grid_widget(
+                            ui,
+                            &self.grid,
+                            &mut self.selected,
+                            &mut self.grid_ui,
+                            self.pluck.state(),
+                            &mut self.settings.pickup_names,
+                            balance_db,
+                        );
+                    });
+                });
             });
-            ui.add_space(6.0);
-            crate::ui::theme::section_frame().show(ui, |ui| {
-                ui.set_min_width(ui.available_width());
-                tuner_widget(ui, self.tuner_reading.as_ref());
-            });
-            ui.add_space(6.0);
-            crate::ui::theme::section_frame().show(ui, |ui| {
-                ui.set_min_width(ui.available_width());
-                let balance_db = self.settings.balance_db;
-                grid_action = grid_widget(
-                    ui,
-                    &self.grid,
-                    &mut self.selected,
-                    &mut self.grid_ui,
-                    self.pluck.state(),
-                    &mut self.settings.pickup_names,
-                    balance_db,
-                );
-            });
-        });
         // Global shortcuts must not fire while a text field (pickup name)
         // has keyboard focus.
         if !ctx.wants_keyboard_input() {
