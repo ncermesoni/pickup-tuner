@@ -142,16 +142,22 @@ pub fn tuner_widget(ui: &mut egui::Ui, reading: Option<&NoteReading>) {
         theme::INK_DIM,
     );
 
-    // in-tune lamp
+    // in-tune lamp — lamp + label centered as one group under the dial
     if in_tune {
         let y = rect.bottom() - 9.0;
-        let lamp = egui::pos2(rect.center().x - 28.0, y);
-        painter.circle_filled(lamp, 3.5, theme::OLIVE);
-        painter.text(
-            egui::pos2(rect.center().x - 18.0, y),
-            egui::Align2::LEFT_CENTER,
-            "IN TUNE",
+        let galley = painter.layout_no_wrap(
+            "IN TUNE".to_owned(),
             egui::FontId::proportional(10.0),
+            theme::OLIVE_DEEP,
+        );
+        const LAMP_D: f32 = 7.0;
+        const GAP: f32 = 6.0;
+        let total = LAMP_D + GAP + galley.size().x;
+        let start = rect.center().x - total / 2.0;
+        painter.circle_filled(egui::pos2(start + LAMP_D / 2.0, y), 3.5, theme::OLIVE);
+        painter.galley(
+            egui::pos2(start + LAMP_D + GAP, y - galley.size().y / 2.0),
+            galley,
             theme::OLIVE_DEEP,
         );
     }
