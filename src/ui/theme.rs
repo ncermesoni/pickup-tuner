@@ -54,6 +54,10 @@ pub const CELL_EMPTY: Color32 = Color32::from_rgb(0xde, 0xd0, 0xad);
 // --- Control faces ---------------------------------------------------------
 pub const CONTROL: Color32 = Color32::from_rgb(0xe7, 0xd9, 0xb9);
 pub const CONTROL_HOVER: Color32 = Color32::from_rgb(0xf1, 0xe6, 0xcb);
+/// Recessed input/value face. A touch darker than the plate so fields read as
+/// inset, but still light enough that dark ink stays high-contrast — the
+/// "values are dark ink on cream, never amber on a dark well" contrast rule.
+pub const FIELD_BG: Color32 = Color32::from_rgb(0xd9, 0xc9, 0xa6);
 
 /// Spectral display family (the big tuner note + the "VU" mark only).
 pub fn display_family() -> egui::FontFamily {
@@ -212,10 +216,16 @@ pub fn apply(ctx: &egui::Context) {
 
     let mut v = egui::Visuals::light();
     v.dark_mode = false;
-    v.window_fill = CHASSIS;
+    // Popups, tooltips and menus are cream faceplate with dark ink — readable
+    // by construction (the contrast rule: never dark ink on a dark bubble).
+    v.window_fill = PLATE;
+    v.window_stroke = egui::Stroke::new(1.0, PLATE_EDGE);
     v.panel_fill = CHASSIS_2;
     v.override_text_color = Some(INK);
-    v.extreme_bg_color = WELL; // text-field wells
+    // Input/value fields are light recessed cream so their dark-ink readouts
+    // stay high-contrast (replaces the old dark well, which made values hard
+    // to read).
+    v.extreme_bg_color = FIELD_BG;
     v.faint_bg_color = PLATE_2;
 
     // Controls are raised cream chips on the faceplate.

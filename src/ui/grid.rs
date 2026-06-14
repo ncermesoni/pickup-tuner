@@ -1,8 +1,10 @@
-//! Capture grid — enamel chips on the faceplate. Each cell's background is the
-//! balance verdict (clear vintage green within ±balance, gold within ~4×,
-//! terracotta beyond, dim cream if uncaptured). It shows the physical
-//! instruction (✓ / ↓ n / ↑ n) over the absolute dBFS level in dark ink, a
-//! brass focus ring when selected, and a ⚠ when the capture clipped.
+//! Capture grid — enamel chips on the faceplate, plus the capture-mode UI.
+//!
+//! Arming changes *mode*, not *layout*: the toolbar is frozen (the Arm/Cancel
+//! button is fixed-width and the live status lives in a reserved-height mode
+//! strip), the config controls dim and lock, and the live target cell pulses a
+//! brass ring with a ▸ reticle. Captures flash olive as they land. Mirrors the
+//! Analog VU capture-mode redesign.
 
 use crate::dsp::capture::CaptureState;
 use crate::model::grid::{CaptureGrid, Metric};
@@ -13,6 +15,9 @@ use egui::Color32;
 /// The "getting close" gold band extends this many times past the user's
 /// balance threshold; beyond it the cell goes terracotta.
 const AMBER_BAND_FACTOR: f32 = 4.0;
+/// Fixed Arm/Cancel button width — sized to the longer "Cancel (Space/Esc)"
+/// label so the toolbar never reflows when you arm.
+const ARM_BTN_W: f32 = 176.0;
 
 pub enum GridAction {
     None,
@@ -34,6 +39,13 @@ impl Default for GridUiState {
     }
 }
 
+/// Per-frame flash overlay for a just-captured cell.
+#[derive(Clone, Copy)]
+pub struct Flash {
+    pub cell: (usize, usize),
+    pub alpha: f32,
+}
+
 fn heat(delta: Option<f32>, balance_db: f32) -> Color32 {
     match delta {
         None => theme::CELL_EMPTY,
@@ -43,8 +55,6 @@ fn heat(delta: Option<f32>, balance_db: f32) -> Color32 {
     }
 }
 
-/// "✓" when balanced, otherwise the physical instruction: hotter than the
-/// row median means lower the pole piece, quieter means raise it.
 fn instruction(delta: f32, balance_db: f32) -> String {
     if delta.abs() <= balance_db {
         "\u{2713}".into() // ✓
@@ -55,38 +65,39 @@ fn instruction(delta: f32, balance_db: f32) -> String {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn cell(
     ui: &mut egui::Ui,
     grid: &CaptureGrid,
     pickup: usize,
     string: usize,
     metric: Metric,
-    is_selected: bool,
+    selected: bool,
+    target: bool,
     balance_db: f32,
+    flash_alpha: f32,
+    time: f64,
 ) -> egui::Response {
     let size = egui::vec2(88.0, 44.0);
-    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    // a target cell can't be clicked away mid-capture
+    let sense = if target {
+        egui::Sense::hover()
+    } else {
+        egui::Sense::click()
+    };
+    let (rect, response) = ui.allocate_exact_size(size, sense);
     let painter = ui.painter_at(rect);
 
     let slot = grid.slot(pickup, string);
     let delta = grid.delta_db(pickup, string, metric);
     let r = 4.0;
     painter.rect_filled(rect, r, heat(if slot.is_some() { delta } else { None }, balance_db));
-    // pressed-enamel chip: a thin dark inset edge
     painter.rect_stroke(
         rect,
         r,
         egui::Stroke::new(1.0, Color32::from_black_alpha(28)),
         egui::StrokeKind::Inside,
     );
-    if is_selected {
-        painter.rect_stroke(
-            rect.shrink(1.0),
-            r,
-            egui::Stroke::new(2.0, theme::BRASS),
-            egui::StrokeKind::Inside,
-        );
-    }
 
     match slot {
         Some(capture) => {
@@ -114,7 +125,6 @@ fn cell(
                     theme::OXBLOOD,
                 );
             }
-
             let metric_name = match metric {
                 Metric::Rms => "RMS",
                 Metric::Peak => "peak",
@@ -135,6 +145,17 @@ fn cell(
             }
             response.clone().on_hover_text(hover);
         }
+        None if target => {
+            // live, empty target — the ▸ reticle pulses
+            let p = 0.45 + 0.55 * (0.5 + 0.5 * (time as f32 * 5.0).sin());
+            painter.text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "\u{25B8}", // ▸
+                egui::FontId::proportional(17.0),
+                theme::BRASS_DEEP.gamma_multiply(p),
+            );
+        }
         None => {
             painter.text(
                 rect.center(),
@@ -149,9 +170,144 @@ fn cell(
         }
     }
 
+    // olive flash the instant a capture lands
+    if flash_alpha > 0.0 {
+        painter.rect_filled(rect, r, theme::OLIVE.gamma_multiply(flash_alpha * 0.8));
+    }
+
+    // overlays: the live target pulses a brass ring; a resting selection is a
+    // steady brass focus ring
+    if target {
+        let pulse = 0.5 + 0.5 * (time as f32 * 5.0).sin();
+        painter.rect_stroke(
+            rect.expand(pulse * 3.0),
+            r,
+            egui::Stroke::new(2.0, theme::BRASS.gamma_multiply(1.0 - pulse)),
+            egui::StrokeKind::Outside,
+        );
+        painter.rect_stroke(
+            rect.shrink(1.0),
+            r,
+            egui::Stroke::new(2.0, theme::BRASS),
+            egui::StrokeKind::Inside,
+        );
+    } else if selected {
+        painter.rect_stroke(
+            rect.shrink(1.0),
+            r,
+            egui::Stroke::new(2.0, theme::BRASS),
+            egui::StrokeKind::Inside,
+        );
+    }
+
     response
 }
 
+/// The reserved-height capture-mode strip below the toolbar. Always drawn (so
+/// the grid never shifts); its content reflects idle / armed / capturing /
+/// row-complete state.
+fn mode_strip(
+    ui: &mut egui::Ui,
+    capture_state: CaptureState,
+    target: (usize, usize),
+    strings: usize,
+    grid: &CaptureGrid,
+    pickup_names: &[String],
+    row_done: bool,
+) {
+    let (p, s) = target;
+    let col = format!("S{}", strings - s);
+    let note = grid
+        .column_note(s)
+        .map(|(n, o)| format!("{n}{o}"))
+        .unwrap_or_default();
+    let pickup = pickup_names.get(p).cloned().unwrap_or_default();
+
+    let (fill, stroke) = match capture_state {
+        CaptureState::Armed => (
+            Color32::from_rgba_unmultiplied(0xd6, 0xa2, 0x4e, 40),
+            egui::Stroke::new(1.0, theme::AMBER.gamma_multiply(0.6)),
+        ),
+        CaptureState::Capturing => (
+            Color32::from_rgba_unmultiplied(0x6a, 0xa0, 0x43, 46),
+            egui::Stroke::new(1.0, theme::OLIVE.gamma_multiply(0.6)),
+        ),
+        CaptureState::Idle if row_done => (
+            Color32::from_rgba_unmultiplied(0x6a, 0xa0, 0x43, 36),
+            egui::Stroke::new(1.0, theme::OLIVE.gamma_multiply(0.45)),
+        ),
+        CaptureState::Idle => (Color32::TRANSPARENT, egui::Stroke::new(1.0, theme::PLATE_EDGE)),
+    };
+
+    egui::Frame::new()
+        .fill(fill)
+        .stroke(stroke)
+        .corner_radius(4.0)
+        .inner_margin(egui::Margin::symmetric(12, 6))
+        .show(ui, |ui| {
+            ui.set_min_height(22.0);
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+                let time = ui.input(|i| i.time);
+                let pulse = 0.5 + 0.5 * (time as f32 * 5.0).sin();
+                let lamp = |ui: &mut egui::Ui, c: Color32| {
+                    let (rc, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
+                    ui.painter()
+                        .circle_filled(rc.center(), 3.5, c.gamma_multiply(0.55 + 0.45 * pulse));
+                };
+                match capture_state {
+                    CaptureState::Armed => {
+                        lamp(ui, theme::AMBER);
+                        ui.label(theme::section_label("Armed"));
+                        let mut t = format!("pluck {col}");
+                        if !note.is_empty() {
+                            t.push_str(&format!(" · {note}"));
+                        }
+                        t.push_str(&format!(" on {pickup}"));
+                        ui.label(egui::RichText::new(t).color(theme::INK_STRONG));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(
+                                egui::RichText::new("auto-captures on transient · Space/Esc to cancel")
+                                    .size(12.0)
+                                    .color(theme::INK_DIM),
+                            );
+                        });
+                    }
+                    CaptureState::Capturing => {
+                        lamp(ui, theme::OLIVE);
+                        ui.label(theme::section_label("Capturing"));
+                        let mut t = col.clone();
+                        if !note.is_empty() {
+                            t.push_str(&format!(" · {note}"));
+                        }
+                        t.push_str(" — hold the note…");
+                        ui.label(egui::RichText::new(t).color(theme::INK_STRONG));
+                    }
+                    CaptureState::Idle if row_done => {
+                        ui.label(egui::RichText::new("\u{2713}").color(theme::OLIVE_DEEP));
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "row complete — flip your guitar's pickup selector to {pickup}, then arm again"
+                            ))
+                            .color(theme::INK_STRONG),
+                        );
+                    }
+                    CaptureState::Idle => {
+                        ui.label(
+                            egui::RichText::new(
+                                "ready — select a cell, press Space to arm, then pluck each string in turn",
+                            )
+                            .size(12.0)
+                            .color(theme::INK_DIM),
+                        );
+                    }
+                }
+            });
+        });
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn grid_widget(
     ui: &mut egui::Ui,
     grid: &CaptureGrid,
@@ -160,53 +316,66 @@ pub fn grid_widget(
     capture_state: CaptureState,
     pickup_names: &mut [String],
     balance_db: f32,
+    continuous: &mut bool,
+    flash: Option<Flash>,
+    row_done: bool,
 ) -> GridAction {
     let mut action = GridAction::None;
+    let armed = !matches!(capture_state, CaptureState::Idle);
     let mut strings = grid.strings();
     let mut pickups = grid.pickups();
+    let time = ui.input(|i| i.time);
 
-    ui.horizontal_wrapped(|ui| {
+    // ---- frozen toolbar: nothing reflows when armed ----
+    ui.horizontal(|ui| {
         ui.label(theme::section_label("Capture grid"));
-        ui.selectable_value(&mut state.metric, Metric::Rms, "RMS")
-            .on_hover_text("perceived loudness as the note rings — use this for balance");
-        ui.selectable_value(&mut state.metric, Metric::Peak, "Peak")
-            .on_hover_text("attack transient — spots strings that spike but don't ring");
+        // config controls that don't apply mid-capture dim + lock
+        ui.add_enabled_ui(!armed, |ui| {
+            ui.selectable_value(&mut state.metric, Metric::Rms, "RMS")
+                .on_hover_text("perceived loudness as the note rings — use this for balance");
+            ui.selectable_value(&mut state.metric, Metric::Peak, "Peak")
+                .on_hover_text("attack transient — spots strings that spike but don't ring");
+            ui.separator();
+            ui.label("strings:");
+            ui.add(egui::DragValue::new(&mut strings).range(4..=12));
+            ui.label("pickups:");
+            ui.add(egui::DragValue::new(&mut pickups).range(1..=4));
+            if strings != grid.strings() || pickups != grid.pickups() {
+                action = GridAction::Reshape { strings, pickups };
+            }
+            ui.separator();
+            ui.checkbox(continuous, "continuous").on_hover_text(
+                "after each capture, auto-arm the next string in the row · stops at the row's end (flip your pickup selector and arm again)",
+            );
+        });
         ui.separator();
-        ui.label("strings:");
-        ui.add(egui::DragValue::new(&mut strings).range(4..=12));
-        ui.label("pickups:");
-        ui.add(egui::DragValue::new(&mut pickups).range(1..=4));
-        if strings != grid.strings() || pickups != grid.pickups() {
-            action = GridAction::Reshape { strings, pickups };
-        }
-        ui.separator();
-        let arm_label = match capture_state {
-            CaptureState::Idle => "Arm capture (Space)",
-            CaptureState::Armed | CaptureState::Capturing => "Cancel (Space/Esc)",
+        let arm_label = if armed {
+            "Cancel (Space/Esc)"
+        } else {
+            "Arm capture (Space)"
         };
-        if ui.button(arm_label).clicked() {
+        if ui
+            .add_sized([ARM_BTN_W, 24.0], egui::Button::new(arm_label))
+            .clicked()
+        {
             action = GridAction::Capture;
         }
-        match capture_state {
-            CaptureState::Armed => {
-                lamp(ui, theme::AMBER);
-                ui.colored_label(theme::AMBER, "armed — pluck the string…");
-            }
-            CaptureState::Capturing => {
-                lamp(ui, theme::OLIVE);
-                ui.colored_label(theme::OLIVE_DEEP, "capturing…");
-            }
-            CaptureState::Idle => {}
-        }
-        if ui.button("Clear slot").clicked() {
-            action = GridAction::ClearSlot;
-        }
-        if ui.button("Clear all").clicked() {
-            action = GridAction::ClearAll;
-        }
+        ui.add_enabled_ui(!armed, |ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("Clear all").clicked() {
+                    action = GridAction::ClearAll;
+                }
+                if ui.button("Clear slot").clicked() {
+                    action = GridAction::ClearSlot;
+                }
+            });
+        });
     });
 
-    ui.add_space(2.0);
+    ui.add_space(6.0);
+    mode_strip(ui, capture_state, *selected, strings, grid, pickup_names, row_done);
+    ui.add_space(6.0);
+
     ui.label(
         egui::RichText::new(format!(
             "each cell: distance from that pickup's median string · ↑ raise pole · ↓ lower pole · ✓ balanced (within ±{balance_db:.1} dB)"
@@ -221,44 +390,53 @@ pub fn grid_widget(
         .show(ui, |ui| {
             ui.label(""); // corner
             for s in 0..grid.strings() {
-                // Guitarists count strings high→low: S6 = low E on the left.
                 let label = format!("S{}", grid.strings() - s);
-                ui.vertical_centered(|ui| {
-                    match grid.column_note(s) {
-                        Some((name, octave)) => {
-                            ui.label(
-                                egui::RichText::new(format!("{name}{octave}"))
-                                    .size(14.0)
-                                    .strong()
-                                    .color(theme::INK),
-                            );
-                            ui.label(egui::RichText::new(label).size(11.0).color(theme::INK_DIM));
-                        }
-                        None => {
-                            ui.label(
-                                egui::RichText::new(label).size(14.0).strong().color(theme::INK),
-                            );
-                        }
+                ui.vertical_centered(|ui| match grid.column_note(s) {
+                    Some((name, octave)) => {
+                        ui.label(
+                            egui::RichText::new(format!("{name}{octave}"))
+                                .size(14.0)
+                                .strong()
+                                .color(theme::INK),
+                        );
+                        ui.label(egui::RichText::new(label).size(11.0).color(theme::INK_DIM));
+                    }
+                    None => {
+                        ui.label(egui::RichText::new(label).size(14.0).strong().color(theme::INK));
                     }
                 });
             }
             ui.end_row();
 
             for p in 0..grid.pickups() {
-                if let Some(name) = pickup_names.get_mut(p) {
-                    ui.add_sized(
-                        egui::vec2(104.0, 24.0),
-                        egui::TextEdit::singleline(name)
-                            .text_color(theme::DIAL)
-                            .vertical_align(egui::Align::Center),
-                    );
-                } else {
-                    ui.label(egui::RichText::new(format!("P{}", p + 1)).strong().color(theme::INK));
-                }
+                // active pickup row gets a brass dot while armed
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 5.0;
+                    if armed && selected.0 == p {
+                        let (rc, _) = ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
+                        ui.painter().circle_filled(rc.center(), 3.5, theme::BRASS);
+                    }
+                    if let Some(name) = pickup_names.get_mut(p) {
+                        ui.add_sized(
+                            egui::vec2(96.0, 24.0),
+                            egui::TextEdit::singleline(name).vertical_align(egui::Align::Center),
+                        );
+                    } else {
+                        ui.label(egui::RichText::new(format!("P{}", p + 1)).strong().color(theme::INK));
+                    }
+                });
                 for s in 0..grid.strings() {
-                    if cell(ui, grid, p, s, state.metric, *selected == (p, s), balance_db)
-                        .clicked()
-                    {
+                    let is_target = armed && *selected == (p, s);
+                    let is_selected = !armed && *selected == (p, s);
+                    let flash_alpha = match flash {
+                        Some(f) if f.cell == (p, s) => f.alpha,
+                        _ => 0.0,
+                    };
+                    let resp = cell(
+                        ui, grid, p, s, state.metric, is_selected, is_target, balance_db,
+                        flash_alpha, time,
+                    );
+                    if resp.clicked() {
                         *selected = (p, s);
                     }
                 }
@@ -299,10 +477,4 @@ pub fn grid_widget(
     }
 
     action
-}
-
-/// A small glowing enamel lamp, used beside live status text.
-fn lamp(ui: &mut egui::Ui, color: Color32) {
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(9.0, 9.0), egui::Sense::hover());
-    ui.painter().circle_filled(rect.center(), 3.5, color);
 }

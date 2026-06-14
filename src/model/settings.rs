@@ -19,6 +19,10 @@ pub struct Settings {
     pub monitor_mute: bool,
     /// Within ±this of the row median a string counts as balanced.
     pub balance_db: f32,
+    /// Continuous capture: after each capture, auto-arm the next string in the
+    /// row (stops at the row's end — you flip the guitar's pickup selector and
+    /// arm again). Off = single-shot capture.
+    pub continuous_capture: bool,
 }
 
 impl Default for Settings {
@@ -37,6 +41,7 @@ impl Default for Settings {
             monitor_gain_db: 0.0,
             monitor_mute: false,
             balance_db: 0.5,
+            continuous_capture: false,
         }
     }
 }

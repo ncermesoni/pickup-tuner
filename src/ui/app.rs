@@ -33,6 +33,13 @@ pub struct App {
     pub grid: CaptureGrid,
     pub selected: (usize, usize), // (pickup, string)
     pub grid_ui: GridUiState,
+    /// A continuous-capture walk is in progress (auto-re-arms each string).
+    auto_session: bool,
+    /// Just-captured cell + remaining flash time.
+    flash_cell: Option<(usize, usize)>,
+    flash_ttl: f32,
+    /// "row complete" prompt timer (continuous mode, end of row).
+    row_done_ttl: f32,
     pub settings: Settings,
     settings_path: Option<PathBuf>,
     sample_chunk: Vec<f32>,
@@ -71,6 +78,10 @@ impl App {
             grid: CaptureGrid::new(settings.strings, settings.pickups),
             selected: (0, 0),
             grid_ui: GridUiState::default(),
+            auto_session: false,
+            flash_cell: None,
+            flash_ttl: 0.0,
+            row_done_ttl: 0.0,
             settings,
             settings_path,
             sample_chunk: Vec::new(),
@@ -173,10 +184,18 @@ impl App {
             self.silent_seconds = 0.0;
         }
 
+        // tick down the transient UI timers
+        self.flash_ttl = (self.flash_ttl - dt).max(0.0);
+        if self.flash_ttl <= 0.0 {
+            self.flash_cell = None;
+        }
+        self.row_done_ttl = (self.row_done_ttl - dt).max(0.0);
+
         if let Some(result) = finished_capture {
+            let (p, s) = self.selected;
             self.grid.capture(
-                self.selected.0,
-                self.selected.1,
+                p,
+                s,
                 Capture {
                     peak_db: result.peak_db,
                     rms_db: result.rms_db,
@@ -186,16 +205,51 @@ impl App {
                     note: self.tuner_reading.map(|r| (r.name, r.octave)),
                 },
             );
-            // Fresh hold window for observing the next pluck.
+            // Fresh hold window for observing the next pluck; flash the cell.
             self.meter.reset_hold();
-            self.advance_selection();
+            self.flash_cell = Some((p, s));
+            self.flash_ttl = 0.55;
+
+            let last_in_row = s + 1 >= self.grid.strings();
+            if self.auto_session && !last_in_row {
+                // continuous mode: step to the next string and re-arm
+                self.selected = (p, s + 1);
+                self.pluck.arm();
+            } else {
+                if self.auto_session && last_in_row {
+                    // end of the row — stop and prompt to flip the selector
+                    self.row_done_ttl = 4.0;
+                    self.selected = if p + 1 < self.grid.pickups() {
+                        (p + 1, 0)
+                    } else {
+                        (p, 0)
+                    };
+                } else {
+                    // single-shot: move the cursor to the next cell
+                    self.advance_selection();
+                }
+                self.auto_session = false;
+            }
         }
     }
 
     fn toggle_arm(&mut self) {
         match self.pluck.state() {
-            CaptureState::Idle => self.pluck.arm(),
-            CaptureState::Armed | CaptureState::Capturing => self.pluck.cancel(),
+            CaptureState::Idle => {
+                self.row_done_ttl = 0.0;
+                if self.settings.continuous_capture {
+                    // continuous walk captures the whole row, starting at S6
+                    self.auto_session = true;
+                    self.selected.1 = 0;
+                } else {
+                    self.auto_session = false;
+                }
+                self.pluck.arm();
+            }
+            CaptureState::Armed | CaptureState::Capturing => {
+                self.auto_session = false;
+                self.pluck.cancel();
+            }
         }
     }
 
@@ -218,6 +272,11 @@ impl App {
         let s = (self.selected.1 as isize + d_string)
             .clamp(0, self.grid.strings() as isize - 1) as usize;
         self.selected = (p, s);
+        // Re-aiming by hand during an armed continuous walk takes back manual
+        // control: the auto-advance stops (the pending arm becomes one-shot).
+        if self.auto_session && !matches!(self.pluck.state(), CaptureState::Idle) {
+            self.auto_session = false;
+        }
     }
 
     fn device_info(&mut self) -> DeviceInfo {
@@ -431,6 +490,11 @@ impl eframe::App for App {
                     theme::faceplate_frame().show(ui, |ui| {
                         ui.set_min_width(ui.available_width());
                         let balance_db = self.settings.balance_db;
+                        let flash = self.flash_cell.map(|cell| crate::ui::grid::Flash {
+                            cell,
+                            alpha: (self.flash_ttl / 0.55).clamp(0.0, 1.0),
+                        });
+                        let row_done = self.row_done_ttl > 0.0;
                         grid_action = grid_widget(
                             ui,
                             &self.grid,
@@ -439,6 +503,9 @@ impl eframe::App for App {
                             self.pluck.state(),
                             &mut self.settings.pickup_names,
                             balance_db,
+                            &mut self.settings.continuous_capture,
+                            flash,
+                            row_done,
                         );
                     });
                 });
