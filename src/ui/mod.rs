@@ -4,3 +4,4 @@ pub mod grid;
 pub mod meter;
 pub mod theme;
 pub mod tuner;
+pub mod widgets;

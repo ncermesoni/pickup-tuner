@@ -8,7 +8,7 @@
 
 use crate::dsp::capture::CaptureState;
 use crate::model::grid::{CaptureGrid, Metric};
-use crate::ui::theme;
+use crate::ui::{theme, widgets};
 use eframe::egui;
 use egui::Color32;
 
@@ -347,15 +347,18 @@ pub fn grid_widget(
     ui.horizontal(|ui| {
         // left: view/config controls — dim + lock while armed
         ui.add_enabled_ui(!armed, |ui| {
-            ui.selectable_value(&mut state.metric, Metric::Rms, "RMS")
-                .on_hover_text("perceived loudness as the note rings — use this for balance");
-            ui.selectable_value(&mut state.metric, Metric::Peak, "Peak")
-                .on_hover_text("attack transient — spots strings that spike but don't ring");
+            let sel = match state.metric {
+                Metric::Rms => 0,
+                Metric::Peak => 1,
+            };
+            if let Some(i) = widgets::segmented(ui, &["RMS", "Peak"], sel) {
+                state.metric = if i == 0 { Metric::Rms } else { Metric::Peak };
+            }
             ui.separator();
             ui.label("strings:");
-            ui.add(egui::DragValue::new(&mut strings).range(4..=12));
+            widgets::stepper(ui, "strings", &mut strings, 4, 12);
             ui.label("pickups:");
-            ui.add(egui::DragValue::new(&mut pickups).range(1..=4));
+            widgets::stepper(ui, "pickups", &mut pickups, 1, 4);
             if strings != grid.strings() || pickups != grid.pickups() {
                 action = GridAction::Reshape { strings, pickups };
             }
@@ -365,10 +368,10 @@ pub fn grid_widget(
         // then the destructive clear buttons — laid out from the right edge.
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.add_enabled_ui(!armed, |ui| {
-                if ui.button("Clear all").clicked() {
+                if widgets::btn(ui, "Clear all").clicked() {
                     action = GridAction::ClearAll;
                 }
-                if ui.button("Clear slot").clicked() {
+                if widgets::btn(ui, "Clear slot").clicked() {
                     action = GridAction::ClearSlot;
                 }
             });
@@ -382,22 +385,18 @@ pub fn grid_widget(
             // button neither stretches nor jiggles when it flips to Cancel.
             let font = egui::TextStyle::Button.resolve(ui.style());
             let label_w = |t: &str| {
-                ui.fonts(|f| f.layout_no_wrap(t.to_owned(), font.clone(), theme::INK))
+                ui.fonts(|f| f.layout_no_wrap(t.to_owned(), font.clone(), egui::Color32::PLACEHOLDER))
                     .size()
                     .x
             };
-            let arm_w = label_w("Arm capture (Space)").max(label_w("Cancel (Space/Esc)"))
-                + 2.0 * ui.spacing().button_padding.x
-                + 6.0;
+            let arm_w = label_w("Arm capture (Space)").max(label_w("Cancel (Space/Esc)")) + 24.0;
             let arm_label = if armed {
                 "Cancel (Space/Esc)"
             } else {
                 "Arm capture (Space)"
             };
-            if ui
-                .add_sized([arm_w, 26.0], egui::Button::new(arm_label))
-                .clicked()
-            {
+            let tone = if armed { theme::OXBLOOD } else { theme::BRASS_DEEP };
+            if widgets::button(ui, arm_label, Some(arm_w), tone).clicked() {
                 action = GridAction::Capture;
             }
         });

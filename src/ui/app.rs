@@ -393,7 +393,7 @@ impl eframe::App for App {
                             ui.label(
                                 egui::RichText::new("audio device stopped").color(theme::AMBER),
                             );
-                            if ui.button("Reconnect").clicked() {
+                            if crate::ui::widgets::btn(ui, "Reconnect").clicked() {
                                 reconnect_clicked = true;
                             }
                         }
@@ -474,21 +474,18 @@ impl eframe::App for App {
             )
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    theme::faceplate_frame().show(ui, |ui| {
-                        ui.set_min_width(ui.available_width());
+                    crate::ui::widgets::panel(ui, |ui| {
                         match meter_widget(ui, &self.meter) {
                             MeterAction::ResetHold => self.meter.reset_hold(),
                             MeterAction::None => {}
                         }
                     });
                     ui.add_space(13.0);
-                    theme::faceplate_frame().show(ui, |ui| {
-                        ui.set_min_width(ui.available_width());
+                    crate::ui::widgets::panel(ui, |ui| {
                         tuner_widget(ui, self.tuner_reading.as_ref());
                     });
                     ui.add_space(13.0);
-                    theme::faceplate_frame().show(ui, |ui| {
-                        ui.set_min_width(ui.available_width());
+                    crate::ui::widgets::panel(ui, |ui| {
                         let balance_db = self.settings.balance_db;
                         let flash = self.flash_cell.map(|cell| crate::ui::grid::Flash {
                             cell,

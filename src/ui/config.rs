@@ -133,10 +133,7 @@ pub fn config_panel(ui: &mut egui::Ui, settings: &mut Settings, info: &DeviceInf
 
     ui.add_space(6.0);
     ui.horizontal(|ui| {
-        if ui
-            .button(egui::RichText::new("Apply").strong().color(theme::BRASS_DEEP))
-            .clicked()
-            || device_changed
+        if crate::ui::widgets::button(ui, "Apply", None, theme::BRASS_DEEP).clicked() || device_changed
         {
             action = ConfigAction::Apply;
         }
