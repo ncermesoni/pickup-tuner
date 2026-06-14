@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      # Put the MSVC toolchain on PATH so cxx-juce's CMake/JUCE C++ build and
+      # the Rust MSVC linker resolve cleanly.
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Default feature set = non-ASIO (WASAPI/DirectSound). The Steinberg SDK
+      # isn't available on CI and the `asio` flag changes none of our Rust
+      # source, so this still compiles 100% of our code, the binary, and links.
+      # Release binaries are built locally with `--features asio`; CI publishes
+      # nothing. Everything runs in the release profile so JUCE compiles once.
+      - name: Build (release, non-ASIO)
+        run: cargo build --release --locked
+
+      - name: Test
+        run: cargo test --release --locked
+
+      - name: Clippy
+        run: cargo clippy --release --all-targets --locked -- -D warnings
