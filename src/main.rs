@@ -1,3 +1,7 @@
+// Release builds target the Windows GUI subsystem so no console window opens
+// behind the app; debug builds keep the console for log output.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use eframe::egui;
 
 fn main() -> eframe::Result {
