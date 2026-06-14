@@ -15,9 +15,6 @@ use egui::Color32;
 /// The "getting close" gold band extends this many times past the user's
 /// balance threshold; beyond it the cell goes terracotta.
 const AMBER_BAND_FACTOR: f32 = 4.0;
-/// Fixed Arm/Cancel button width — sized to the longer "Cancel (Space/Esc)"
-/// label so the toolbar never reflows when you arm.
-const ARM_BTN_W: f32 = 176.0;
 
 pub enum GridAction {
     None,
@@ -326,10 +323,11 @@ pub fn grid_widget(
     let mut pickups = grid.pickups();
     let time = ui.input(|i| i.time);
 
-    // ---- frozen toolbar: nothing reflows when armed ----
+    // ---- header: title on its own row, then a frozen control bar ----
+    ui.label(theme::section_label("Capture grid"));
+    ui.add_space(7.0);
     ui.horizontal(|ui| {
-        ui.label(theme::section_label("Capture grid"));
-        // config controls that don't apply mid-capture dim + lock
+        // left: view/config controls — dim + lock while armed
         ui.add_enabled_ui(!armed, |ui| {
             ui.selectable_value(&mut state.metric, Metric::Rms, "RMS")
                 .on_hover_text("perceived loudness as the note rings — use this for balance");
@@ -343,25 +341,12 @@ pub fn grid_widget(
             if strings != grid.strings() || pickups != grid.pickups() {
                 action = GridAction::Reshape { strings, pickups };
             }
-            ui.separator();
-            ui.checkbox(continuous, "continuous").on_hover_text(
-                "after each capture, auto-arm the next string in the row · stops at the row's end (flip your pickup selector and arm again)",
-            );
         });
-        ui.separator();
-        let arm_label = if armed {
-            "Cancel (Space/Esc)"
-        } else {
-            "Arm capture (Space)"
-        };
-        if ui
-            .add_sized([ARM_BTN_W, 24.0], egui::Button::new(arm_label))
-            .clicked()
-        {
-            action = GridAction::Capture;
-        }
-        ui.add_enabled_ui(!armed, |ui| {
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+
+        // right: the capture action group (Arm + its continuous option),
+        // then the destructive clear buttons — laid out from the right edge.
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.add_enabled_ui(!armed, |ui| {
                 if ui.button("Clear all").clicked() {
                     action = GridAction::ClearAll;
                 }
@@ -369,6 +354,34 @@ pub fn grid_widget(
                     action = GridAction::ClearSlot;
                 }
             });
+            ui.separator();
+            ui.add_enabled_ui(!armed, |ui| {
+                ui.checkbox(continuous, "continuous").on_hover_text(
+                    "after each capture, auto-arm the next string in the row · stops at the row's end (flip your pickup selector and arm again)",
+                );
+            });
+            // Snug, stable width: fits the wider of the two labels so the
+            // button neither stretches nor jiggles when it flips to Cancel.
+            let font = egui::TextStyle::Button.resolve(ui.style());
+            let label_w = |t: &str| {
+                ui.fonts(|f| f.layout_no_wrap(t.to_owned(), font.clone(), theme::INK))
+                    .size()
+                    .x
+            };
+            let arm_w = label_w("Arm capture (Space)").max(label_w("Cancel (Space/Esc)"))
+                + 2.0 * ui.spacing().button_padding.x
+                + 6.0;
+            let arm_label = if armed {
+                "Cancel (Space/Esc)"
+            } else {
+                "Arm capture (Space)"
+            };
+            if ui
+                .add_sized([arm_w, 26.0], egui::Button::new(arm_label))
+                .clicked()
+            {
+                action = GridAction::Capture;
+            }
         });
     });
 
