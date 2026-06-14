@@ -501,6 +501,7 @@ impl eframe::App for App {
                             &mut self.selected,
                             &mut self.grid_ui,
                             self.pluck.state(),
+                            self.pluck.waiting_for_silence(),
                             &mut self.settings.pickup_names,
                             balance_db,
                             &mut self.settings.continuous_capture,

@@ -203,9 +203,11 @@ fn cell(
 /// The reserved-height capture-mode strip below the toolbar. Always drawn (so
 /// the grid never shifts); its content reflects idle / armed / capturing /
 /// row-complete state.
+#[allow(clippy::too_many_arguments)]
 fn mode_strip(
     ui: &mut egui::Ui,
     capture_state: CaptureState,
+    settling: bool,
     target: (usize, usize),
     strings: usize,
     grid: &CaptureGrid,
@@ -254,6 +256,21 @@ fn mode_strip(
                         .circle_filled(rc.center(), 3.5, c.gamma_multiply(0.55 + 0.45 * pulse));
                 };
                 match capture_state {
+                    CaptureState::Armed if settling => {
+                        lamp(ui, theme::AMBER);
+                        ui.label(theme::section_label("Waiting"));
+                        ui.label(
+                            egui::RichText::new("let the previous string ring out…")
+                                .color(theme::INK_STRONG),
+                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(
+                                egui::RichText::new("Space/Esc to cancel")
+                                    .size(12.0)
+                                    .color(theme::INK_DIM),
+                            );
+                        });
+                    }
                     CaptureState::Armed => {
                         lamp(ui, theme::AMBER);
                         ui.label(theme::section_label("Armed"));
@@ -311,6 +328,7 @@ pub fn grid_widget(
     selected: &mut (usize, usize),
     state: &mut GridUiState,
     capture_state: CaptureState,
+    settling: bool,
     pickup_names: &mut [String],
     balance_db: f32,
     continuous: &mut bool,
@@ -386,7 +404,7 @@ pub fn grid_widget(
     });
 
     ui.add_space(6.0);
-    mode_strip(ui, capture_state, *selected, strings, grid, pickup_names, row_done);
+    mode_strip(ui, capture_state, settling, *selected, strings, grid, pickup_names, row_done);
     ui.add_space(6.0);
 
     ui.label(

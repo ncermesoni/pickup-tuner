@@ -3,6 +3,10 @@ use crate::dsp::levels::{BlockStats, CLIP_THRESHOLD, dbfs};
 /// Pluck level rises well above this; idle noise from a guitar input
 /// stays below it.
 const ONSET_THRESHOLD_DB: f32 = -45.0;
+/// After arming, the signal must fall below this before the next onset is
+/// accepted — so a still-ringing string can't immediately re-trigger the next
+/// (continuous) capture. A touch below the onset for hysteresis.
+const RELEASE_THRESHOLD_DB: f32 = -49.0;
 /// Long enough to cover the attack and early decay that determine how
 /// loud a pluck feels, short enough that captures feel instant.
 const WINDOW_SECONDS: f32 = 0.5;
@@ -27,6 +31,10 @@ pub struct CaptureResult {
 pub struct PluckCapture {
     state: CaptureState,
     onset_threshold: f32,
+    release_threshold: f32,
+    /// The signal has fallen quiet since arming, so the next onset is a fresh
+    /// pluck rather than the tail of the previous one.
+    primed: bool,
     window_samples: usize,
     peak: f32,
     sum_squares: f64,
@@ -39,6 +47,8 @@ impl PluckCapture {
         Self {
             state: CaptureState::Idle,
             onset_threshold: 10f32.powf(ONSET_THRESHOLD_DB / 20.0),
+            release_threshold: 10f32.powf(RELEASE_THRESHOLD_DB / 20.0),
+            primed: false,
             window_samples: (WINDOW_SECONDS * sample_rate) as usize,
             peak: 0.0,
             sum_squares: 0.0,
@@ -51,8 +61,16 @@ impl PluckCapture {
         self.state
     }
 
+    /// Armed but still waiting for the previous string to ring out — the next
+    /// pluck won't be captured until the signal settles.
+    pub fn waiting_for_silence(&self) -> bool {
+        self.state == CaptureState::Armed && !self.primed
+    }
+
     pub fn arm(&mut self) {
         self.state = CaptureState::Armed;
+        // require a quiet stretch before the next onset counts as a pluck
+        self.primed = false;
         self.peak = 0.0;
         self.sum_squares = 0.0;
         self.samples = 0;
@@ -69,7 +87,13 @@ impl PluckCapture {
         match self.state {
             CaptureState::Idle => None,
             CaptureState::Armed => {
-                if stats.peak >= self.onset_threshold {
+                if !self.primed {
+                    // wait for the signal to settle before accepting an onset
+                    if stats.peak < self.release_threshold {
+                        self.primed = true;
+                    }
+                    None
+                } else if stats.peak >= self.onset_threshold {
                     self.state = CaptureState::Capturing;
                     self.accumulate(stats)
                 } else {
@@ -132,10 +156,17 @@ mod tests {
         assert_eq!(c.state(), CaptureState::Armed);
     }
 
+    /// Feed a quiet block so the armed detector primes (clears the
+    /// wait-for-silence gate) before the pluck.
+    fn prime(c: &mut PluckCapture) {
+        c.feed(&block(0.0005, 256));
+    }
+
     #[test]
     fn onset_starts_capture_and_window_completes() {
         let mut c = PluckCapture::new(48_000.0);
         c.arm();
+        prime(&mut c);
         assert!(c.feed(&block(0.5, 4800)).is_none()); // onset, 100 ms
         assert_eq!(c.state(), CaptureState::Capturing);
         // 400 ms more fills the 500 ms window
@@ -167,9 +198,29 @@ mod tests {
     }
 
     #[test]
+    fn still_ringing_does_not_retrigger() {
+        let mut c = PluckCapture::new(48_000.0);
+        c.arm();
+        // a string from the previous capture is still ringing above the onset
+        // level — it must NOT start a new capture
+        for _ in 0..50 {
+            assert!(c.feed(&block(0.1, 256)).is_none());
+        }
+        assert_eq!(c.state(), CaptureState::Armed);
+        assert!(c.waiting_for_silence());
+        // it rings out (drops below the release threshold) → now primed
+        prime(&mut c);
+        assert!(!c.waiting_for_silence());
+        // the next genuine pluck triggers
+        assert!(c.feed(&block(0.4, 4800)).is_none());
+        assert_eq!(c.state(), CaptureState::Capturing);
+    }
+
+    #[test]
     fn clip_during_window_flags_result() {
         let mut c = PluckCapture::new(48_000.0);
         c.arm();
+        prime(&mut c);
         c.feed(&block(0.9995, 4800));
         let mut result = None;
         for _ in 0..5 {
@@ -194,6 +245,7 @@ mod tests {
     fn rearm_during_capture_restarts() {
         let mut c = PluckCapture::new(48_000.0);
         c.arm();
+        prime(&mut c);
         c.feed(&block(0.9, 4800));
         assert_eq!(c.state(), CaptureState::Capturing);
         c.arm();
