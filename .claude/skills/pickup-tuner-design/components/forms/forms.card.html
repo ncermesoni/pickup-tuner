@@ -23,7 +23,7 @@
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
   <script src="../../_ds_bundle.js"></script>
   <script type="text/babel">
-    const { Button, SegmentedToggle, Select, Slider, Checkbox, TextField, Stepper } =
+    const { Button, SegmentedToggle, Select, Slider, Checkbox, TextField, Stepper, ValueField } =
       window.PickupTunerDesignSystem_dfbad4;
 
     function Demo() {
@@ -33,6 +33,7 @@
       const [mute, setMute] = React.useState(false);
       const [name, setName] = React.useState("Bridge");
       const [strings, setStrings] = React.useState(6);
+      const [bal, setBal] = React.useState(0.5);
 
       return (
         <div className="grid">
@@ -60,6 +61,8 @@
             <span className="cap">Field</span>
             <TextField value={name} onChange={setName} width={120} />
             <Stepper label="strings:" value={strings} min={4} max={12} onChange={setStrings} />
+            <span className="cap">Value</span>
+            <ValueField value={bal} min={0.1} max={3} step={0.1} suffix="dB" onChange={setBal} />
           </div>
         </div>
       );

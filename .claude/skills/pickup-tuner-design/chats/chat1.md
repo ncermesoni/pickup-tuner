@@ -896,3 +896,244 @@ Both needles pivot from the hub now — RMS dark, peak-hold brass. Once the veri
 
 Back to your earlier question whenever you're ready: want me to **package the project for Claude Code** (and should I **strip `explorations/`** first)?
 
+## User
+
+look at this implementation. the action being performed is editing the grid balance threshold value, while leaving the mouse hovering on the field. unreadable text on the tooltip, very hard to read text on the control itself. is this a problem with the design system or the implementation?
+
+## Assistant
+
+_[tool: view_image]_
+
+Good catch — and the answer is **both, but mostly the implementation, exposing one real gap in the system.** Let me break it down by element:
+
+## The tooltip — unreadable
+**This is an implementation problem.** The design system **has no Tooltip component** — so whoever built this invented one and picked the wrong colors. They've put what looks like `--text-muted` (#8A7A56, a mid olive meant for *captions on cream*) onto a dark chassis-colored background. That's mid-on-dark — roughly a 1.5:1 contrast ratio.
+
+The tokens to do it right already exist (`--text-on-chassis` #E8DCC0 is the cream lettering meant for dark surfaces; `StatusBadge` even has an `onDark` prop for exactly this). They just weren't reached for. Cream-on-chassis would be ~9:1.
+
+**But the system shares blame:** there's no Tooltip primitive to copy, and the "dark surfaces need on-chassis ink, not faceplate ink" rule isn't loud enough. A primitive would have prevented the mistake.
+
+## The "0.50" value field — hard to read
+**Also implementation.** This is a control that **isn't in the design system.** My `Slider` component already shows its value as `--ink-strong` (near-black) on the **cream faceplate** — high contrast. The implementer instead built a separate editable amber-on-dark-well number box. Amber on the dark well is borderline at rest and gets worse with the focus glow washing over it during editing. The DS pattern (dark readout on cream, right next to the slider) avoids this entirely.
+
+## What I'd do
+Close the gap so the implementation has correct things to reach for:
+
+1. **Add a `Tooltip` component** to the system — dark chassis fill with cream `--text-on-chassis` text (or an inverted cream-faceplate variant), proper padding, a max-width so long help text wraps, and a documented contrast rule.
+2. **Add a `ValueField` / drag-value primitive** matching the Slider's readout treatment (dark ink on cream, brass focus ring) so nobody hand-rolls an amber-on-dark editor again.
+3. Add a short **"text on dark vs. cream surfaces"** note to the README so the token choice is unmissable.
+
+Want me to build those two primitives + the doc now? That's the cleanest fix — it makes the *correct* version the path of least resistance for the next Claude Code session.
+
+## User
+
+let's make a list of things to fix, add those to the list. 
+we also need a better thought out "capture mode", see screenshots 1 (unarmed), and 2(armed) and how the UI shifts around
+
+## Assistant
+
+_[tool: view_image]_
+
+_[tool: view_image]_
+
+Looking at the two states side by side, the core problem is clear: **the header reflows when you arm.** The "Arm capture (Space)" button swaps to the wider "Cancel (Space/Esc)", and the "armed — pluck the string…" status appears *inline in the same row* — which shoves "Clear all" onto a second line and pushes the entire grid down ~24px. Controls jump around at the exact moment you need to focus on plucking. And once armed, nothing on the grid itself clearly says *which* cell is the live capture target.
+
+Let me get the full fix list down.
+
+_[tool: update_todos]_
+
+Added — 9 items, grouped into the **DS-gap fixes** (tooltip, value field, dark-text doc) from the last issue and the **capture-mode redesign** (items 26–31).
+
+Before I prototype the capture mode, here's the thinking I'd build to — tell me if it matches your mental model:
+
+**The principle: arming changes *mode*, not *layout*.** Nothing in the toolbar should move.
+
+1. **Frozen toolbar.** The Arm/Cancel button gets a fixed width (sized to the longer "Cancel (Space/Esc)" label so it never grows). The status text lives in a **reserved slot** that's always there — empty when idle, "armed — pluck…" when armed — so "Clear slot / Clear all" never wrap. Zero reflow between your two screenshots.
+
+2. **The grid becomes the focus.** When armed, the config controls that don't make sense mid-capture (strings/pickups steppers, RMS·Peak toggle) **dim and lock**. The screen visibly quiets down so your eye goes to the grid.
+
+3. **A real capture target.** The live cell gets an unmistakable treatment — a **pulsing brass ring + a "▸ pluck S4 · A#2" tag** — instead of today's near-invisible selection outline. You always know exactly which string to hit. After a capture, the cell **flashes green**, then the target **auto-advances** to the next string.
+
+4. **A mode strip, not inline text.** Armed/capturing state shows as a slim banner with reserved height (so it doesn't shove the grid), carrying the lamp, the live target, a mini level read, and Cancel.
+
+Two decisions I'd want from you:
+- **Advance order** — across each pickup row string-by-string (S6→S1, then next pickup), or down a column? I'd default to row-by-row.
+- **Trigger** — auto-capture on transient (you just pluck and it grabs the peak), or capture-on-keypress? Today it reads as auto; I'd keep auto with a short settle, and let Space cancel.
+
+Give me a thumbs-up (and those two calls) and I'll build the redesigned capture flow as a working prototype in the UI kit, plus add the `target`/`armed`/`just-captured` states to the `GridCell` component so it's reusable.
+
+## User
+
+advance order is string by string (one pickup selector position at a time)
+the trigger is already solved, it captures on transient
+
+## Assistant
+
+Locked: **row-by-row, string-by-string** advance, **auto-capture on transient**. Let me build it. I'll start with the `GridCell` states (the reusable piece), then rework the capture grid and the app loop.
+
+_[tool: read_file]_
+
+_[tool: read_file]_
+
+Now let me read App.jsx to understand the capture loop.
+
+_[tool: read_file]_
+
+Now I have the full picture. Let me build it. First, the reusable `GridCell` with `target` (live, pulsing) and `flash` (just-captured) states.
+
+_[tool: write_file]_
+
+_[tool: str_replace_edit]_
+
+Now update GridCell's `.d.ts` and `.prompt.md` for the new states.
+
+_[tool: str_replace_edit]_
+
+_[tool: str_replace_edit]_
+
+Now the redesigned `CaptureGrid` — frozen toolbar, locked controls while armed, a reserved-height mode strip, and target/flash wiring.
+
+_[tool: write_file]_
+
+Now rewire the App capture loop for continuous in-row capture, with `flashCell` and `rowDone`, and pass the new props.
+
+_[tool: str_replace_edit]_
+
+_[tool: str_replace_edit]_
+
+_[tool: str_replace_edit]_
+
+Now let me add a target-state example to the Instruments card and the DS-gap primitives. First the card:
+
+_[tool: read_file]_
+
+_[tool: str_replace_edit]_
+
+Now the DS-gap primitives. A `Tooltip` (correct contrast) in a new `feedback/` group, and a `ValueField` drag-value in `forms/`.
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+_[tool: write_file]_
+
+Now the feedback card, add `ValueField` to the forms card, and the dark-text README rule.
+
+_[tool: write_file]_
+
+_[tool: read_file]_
+
+_[tool: read_file]_
+
+_[tool: str_replace_edit]_
+
+_[tool: str_replace_edit]_
+
+Let me verify everything compiles, then update the README index/quick-ref.
+
+_[tool: check_design_system]_
+
+Clean — 15 components, no issues. Let me update the README index to list the new primitives, and model the Tooltip in the ConfigPanel.
+
+_[tool: str_replace_edit]_
+
+_[tool: str_replace_edit]_
+
+All wired. Let me close out the todos and hand off — the bundle recompiles on turn-end and the verifier will exercise the new capture flow.
+
+_[tool: update_todos]_
+
+_[tool: done]_
+
+Done — all 9 items shipped. Here's what changed:
+
+**The two DS-gap fixes (from the tooltip issue)**
+- **`Tooltip`** — new `feedback/` group. Cream text on the dark chassis by construction, `maxWidth` wrap so long help copy never runs off-panel. The exact "balanced within ± dB" help now reads cleanly.
+- **`ValueField`** — new `forms/` primitive. Editable numeric readout with **dark ink on a cream chip + brass focus ring** (click to type, drag to scrub) — the correct replacement for the amber-on-dark editor.
+- **README contrast rule** — a new "text on dark vs. cream surfaces" section spells out which ink tokens belong on which surface, and points to the components that encode it.
+
+**The redesigned capture mode**
+- **Frozen toolbar** — the Arm/Cancel button is fixed-width (sized to the longer label) and the status moved out of the control row into its own strip. Arming no longer reflows anything; the grid stays put between your two screenshots.
+- **Reserved mode strip** — always-present 34px strip: idle shows a "press Space to arm" hint; armed shows **ARMED · pluck S4 · A#2 on Neck** with a pulsing lamp; capturing and "row complete" have their own states.
+- **Unmistakable target** — the live cell pulses a brass ripple with a ▸ reticle, and the active pickup row gets a brass dot by its name. Captures **flash olive** as they land.
+- **Locked controls** — metric toggle, steppers, and clear buttons dim + disable while armed, so focus is on the grid.
+- **Correct flow** — arming runs a continuous session **string-by-string across one pickup row**, auto-capturing on each transient; at the end of the row it stops and prompts you to **flip the guitar's pickup selector** before arming the next row — respecting the physical reality you flagged.
+
+The `target`/`flash` states live on the reusable `GridCell`, so this capture treatment is available to any consumer, not just the kit.
+
+Once the verifier confirms the live flow, give the capture mode a spin (Space to arm). **Tell me if the session should stop at the end of a row** (what I built) **or auto-continue across all rows** — that's the one behavior I inferred from the physical-selector point and want to confirm.
+
+## User
+
+yeah end of row is fine
+
+## Assistant
+
+Confirmed — end-of-row stop is the right behavior, so nothing to change there. The capture mode is settled.
+
+Where that leaves us: the system is in good shape — Analog VU direction locked, dual-needle VU, redesigned capture mode, and the Tooltip/ValueField gaps closed.
+
+Open threads whenever you want them:
+- **Package for Claude Code** (your earlier question) — I'd strip the `explorations/` folder first for a clean skill bundle, then present the download.
+- **Fonts** — swap my Google-Fonts stand-ins for licensed faces if you want exact fidelity.
+
+Want me to package it up now (and clear `explorations/`), or is there something else to tune first?
+
+## User
+
+do the packaging
+
+## Assistant
+
+Packaging it up. First I'll clear the `explorations/` scratch folder (old mocks + the analog-vu refinement that's now baked into the system) so the skill bundle is clean, then present the download.
+
+_[tool: delete_file]_
+
+_[tool: check_design_system]_
+
+Explorations cleared, system clean (18 cards, no issues). Here's the packaged project:
+
+_[tool: present_fs_item_for_download]_
+
+Downloaded above. To use it in Claude Code:
+
+1. **Unzip into your skills folder** as its own directory — the folder must contain `SKILL.md` at its top level:
+   ```
+   ~/.claude/skills/pickup-tuner-design/SKILL.md      ← personal (all projects)
+   # or, scoped to one repo:
+   <your-repo>/.claude/skills/pickup-tuner-design/SKILL.md
+   ```
+2. In a Claude Code session, ask it to **use the `pickup-tuner-design` skill** — it reads `SKILL.md` → `README.md` and the tokens/components to design on-brand.
+
+What's inside: `SKILL.md`, `readme.md`, `styles.css` + `tokens/`, all React components in `components/`, the full app in `ui_kits/`, and the compiled `_ds_bundle.js`.
+
+One note: the **fonts are Google-Fonts stand-ins** (Oswald / Spectral / JetBrains Mono) loaded via `tokens/fonts.css` — they'll fetch online. If you need offline or licensed faces, send the files and I'll vendor them into the bundle. Anything else you want adjusted before you hand it off?
+
+## User
+
+do we have a way to display notifications in the app?
+
+## Assistant
+
+Not a dedicated one yet. Here's what the system currently has for telling the user something:
+
+- **`StatusBadge`** — inline, *persistent* status text with a lamp (olive/amber/oxblood). It's what the status bar uses for engine state ("monitoring", "audio device stopped — Reconnect") and what the capture mode strip uses ("ARMED · pluck S4…").
+- **`Tooltip`** — hover-only help, not a notification.
+- The capture **mode strip** is a kit-level pattern, not a reusable component.
+
+So there's **no transient toast / notification primitive** — nothing that pops up, says "captured ✓" or "settings applied" or "input clipped — lower gain", and auto-dismisses. Worth noting the original desktop app leans on *inline/persistent* status rather than toasts, which suits an always-on instrument — but a few moments (capture saved, device reconnected, an error) genuinely want a transient signal.
+
+I'd add a **`Toast`** primitive that fits Analog VU: a small enamel "indicator" card that slides in at a corner of the chassis, cream-on-chassis text (per the contrast rule), a tone lamp (olive = success, amber = caution, oxblood = error), and auto-dismiss — plus a `useToasts()` helper to queue them. For hard, must-acknowledge problems I'd keep a **persistent banner** instead of a toast.
+
+Two quick questions so I build the right thing:
+1. **What needs to notify?** Mostly *transient confirmations* (captured, applied, reset), *warnings* (clip, no signal), *errors* (device lost) — or all three?
+2. **Where should they appear** — docked to the bottom/top of the chassis, or floating corner — and should they **auto-dismiss** (and stack if several fire)?
+
+Want me to build the `Toast` primitive (+ a card and a demo in the kit)?
+

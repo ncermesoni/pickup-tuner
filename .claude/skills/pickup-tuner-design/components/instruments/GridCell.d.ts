@@ -13,6 +13,10 @@ export interface GridCellProps {
   /** Balance band (±dB) that counts as ✓. Default 0.5. */
   balance?: number;
   selected?: boolean;
+  /** The live capture target — renders a pulsing brass ripple + ▸ reticle. */
+  target?: boolean;
+  /** Brief olive flash the instant a capture lands. */
+  flash?: boolean;
   /** Show the ⚠ clip flag. */
   clipped?: boolean;
   onClick?: () => void;

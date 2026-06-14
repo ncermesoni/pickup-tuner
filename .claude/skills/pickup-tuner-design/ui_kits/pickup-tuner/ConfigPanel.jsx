@@ -1,7 +1,7 @@
 /* Right config panel — a cream faceplate column: Audio / Monitoring / Tuner / Grid,
    with engraved Oswald headings and hairline dividers. */
 (function () {
-  const { Select, Slider, Checkbox, Button } = window.PickupTunerDesignSystem_dfbad4;
+  const { Select, Slider, Checkbox, Button, Tooltip } = window.PickupTunerDesignSystem_dfbad4;
 
   function Heading({ children }) {
     return (
@@ -64,7 +64,12 @@
           onChange={(v) => set({ a4: v })} /></Field>
 
         <Divider />
-        <Heading>Grid</Heading>
+        <Heading>
+          <Tooltip placement="bottom"
+            content="how close to the row median a string must be to count as balanced (green / ✓)">
+            <span style={{ cursor: "help", borderBottom: "1px dotted var(--text-muted)" }}>Grid</span>
+          </Tooltip>
+        </Heading>
         <Field><Slider value={s.balance} min={0.1} max={3} step={0.1} label="balanced within ± dB"
           onChange={(v) => set({ balance: v })} /></Field>
       </div>

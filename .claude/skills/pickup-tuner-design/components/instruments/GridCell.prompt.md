@@ -9,3 +9,4 @@ One capture-grid cell — a heatmap tile showing the raise/lower instruction ove
 
 - `delta` is dB from the pickup row's median: positive = hotter → `↓ lower the pole`, negative = quieter → `↑ raise the pole`, within `balance` → `✓`.
 - Color follows the same verdict: green / amber (within ~4× band) / red. Lay cells out on a 4px grid (`--grid-gap`).
+- Capture-mode states: `target` marks the live cell (pulsing brass ripple + ▸), `flash` plays a one-shot olive flash when a reading lands, `selected` is the brass focus ring.

@@ -179,6 +179,23 @@ When you build new surfaces in this brand, **reach for a Unicode glyph before an
 icon**. If a genuine icon is unavoidable, match the spirit: thin, monochrome,
 inheriting text color, never filled or multicolor. **No emoji.**
 
+## Text on dark vs. cream surfaces — the one contrast rule
+
+The system has two surface families and the ink does **not** cross between them.
+Getting this wrong is the single easiest mistake (it produces dark-on-dark
+tooltips and amber-on-dark editors):
+
+- **On cream faceplate / ivory dials** → use the ink tokens: `--ink-strong`
+  (figures), `--text-primary` (labels), `--text-muted` (engraved captions).
+  Never put `--text-on-chassis` here.
+- **On the dark tweed chassis** (status bar, tooltips, any dark bubble) → use
+  `--text-on-chassis` (cream) and `--text-on-chassis-dim`. Never put `--ink*`
+  (dark, meant for cream) on a dark surface.
+- Components encode this for you: `Tooltip` is cream-on-chassis by construction,
+  `StatusBadge` takes an `onDark` prop, and `ValueField` keeps dark ink on a
+  cream chip so an editable number never becomes low-contrast. Prefer these over
+  hand-rolled markup.
+
 > Note: the source repo ships no raster assets (logo PNG/SVG, imagery) — it's a
 > code-drawn UI — so `assets/` here holds only the brand mark expressed in CSS
 > (`guidelines/brand-wordmark.card.html`). If a real logo exists, drop it in
@@ -200,8 +217,9 @@ Root manifest of this system.
 - **`components/`** — reusable React primitives (compiled into `_ds_bundle.js`,
   reachable as `window.PickupTunerDesignSystem_<hash>.<Name>`):
   - **`forms/`** — `Button`, `Select`, `Slider`, `Checkbox`, `TextField`,
-    `Stepper`, `SegmentedToggle`.
+    `Stepper`, `SegmentedToggle`, `ValueField`.
   - **`layout/`** — `Panel`, `SectionLabel`, `StatusBadge`.
+  - **`feedback/`** — `Tooltip` (cream-on-chassis help bubble).
   - **`instruments/`** — `Meter`, `Tuner`, `GridCell` (the signature parts).
 - **`ui_kits/pickup-tuner/`** — the full, clickable single-screen app
   recreation (`index.html` + `StatusBar` / `ConfigPanel` / `CaptureGrid` /
@@ -218,9 +236,11 @@ Root manifest of this system.
 | `Checkbox` | raised faceplate box + clickable label (Mute) |
 | `TextField` | singleline input in a recessed dark well (pickup rename) |
 | `Stepper` | compact integer stepper (strings / pickups counts) |
+| `ValueField` | editable numeric readout — dark ink on cream, drag or type (dB/Hz/threshold) |
 | `SegmentedToggle` | the RMS / Peak metric switch |
+| `Tooltip` | help bubble on the dark chassis with cream text (guaranteed contrast) |
 | `Panel` / `SectionLabel` | cream faceplate panel + its engraved caption |
 | `StatusBadge` | inline enamel status text + lamp (armed / CLIP / …) |
 | `Meter` | analog VU level needle on an ivory dial (rms + brass hold) |
 | `Tuner` | centered-needle chromatic tuner (up = in tune, ♭ / ♯) |
-| `GridCell` | one capture cell — enamel heatmap + raise/lower instruction |
+| `GridCell` | one capture cell — enamel heatmap + raise/lower instruction; `target`/`flash` capture states |

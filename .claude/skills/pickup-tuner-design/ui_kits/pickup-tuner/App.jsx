@@ -37,6 +37,8 @@
     const [metric, setMetric] = React.useState("RMS");
     const [captureState, setCaptureState] = React.useState("idle");
     const [meter, setMeter] = React.useState({ peak: -90, hold: -90, rms: -90 });
+    const [flashCell, setFlashCell] = React.useState(null);
+    const [rowDone, setRowDone] = React.useState(false);
 
     const tuning = React.useMemo(() => window.PT.tuningFor(strings), [strings]);
     const env = React.useRef(0);     // pluck envelope 0..1
@@ -76,33 +78,49 @@
       };
     }, [tick, selected.s, tuning, s.a4]);
 
-    // --- capture loop -------------------------------------------------------
+    // --- capture loop: continuous, string-by-string across ONE pickup row -----
+    // (one pickup-selector position at a time — the player flips the guitar's
+    //  selector and re-arms for the next row). Auto-captures on each transient.
     const resetHold = () => { holdRef.current = -90; };
 
-    const land = () => {
-      const { p, s: col } = selRef.current;
+    const captureAt = (p, col) => {
       const lvl = simulateLevel(p, col, strings);
       const note = tuning[col] || tuning[0];
       env.current = 1; // kick the meter
       setGrid((g) => g.map((row, pi) => row.map((cell, si) =>
         pi === p && si === col ? { ...lvl, note: { name: note.name, octave: note.octave } } : cell)));
-      setCaptureState("idle");
-      // advance selection
-      setSelected((cur) => {
-        if (cur.s + 1 < strings) return { p: cur.p, s: cur.s + 1 };
-        if (cur.p + 1 < pickups) return { p: cur.p + 1, s: 0 };
-        return cur;
-      });
+      setFlashCell({ p, s: col });
+      timers.current.push(setTimeout(() => setFlashCell(null), 550));
+    };
+
+    // one step: wait for a pluck, capture, then advance within the row or finish.
+    const runStep = () => {
+      timers.current.push(setTimeout(() => {
+        setCaptureState("capturing");
+        env.current = 1;
+        timers.current.push(setTimeout(() => {
+          const { p, s: col } = selRef.current;
+          captureAt(p, col);
+          if (col + 1 < strings) {
+            setSelected({ p, s: col + 1 });   // next string in this row
+            setCaptureState("armed");
+            timers.current.push(setTimeout(runStep, 280));
+          } else {
+            setCaptureState("idle");          // row finished — player must flip selector
+            setRowDone(true);
+            timers.current.push(setTimeout(() => setRowDone(false), 3500));
+            setSelected((cur) => (cur.p + 1 < pickups ? { p: cur.p + 1, s: 0 } : { p: cur.p, s: 0 }));
+          }
+        }, 460));
+      }, 850));
     };
 
     const arm = () => {
       if (captureState !== "idle") { clearTimers(); setCaptureState("idle"); return; }
+      setRowDone(false);
+      setSelected((cur) => ({ ...cur, s: 0 })); // start at the first string of the selected row
       setCaptureState("armed");
-      timers.current.push(setTimeout(() => {
-        setCaptureState("capturing");
-        env.current = 1;
-        timers.current.push(setTimeout(land, 520));
-      }, 700));
+      timers.current.push(setTimeout(runStep, 120));
     };
 
     const cancel = () => { clearTimers(); setCaptureState("idle"); };
@@ -150,6 +168,7 @@
         if (document.activeElement && document.activeElement.tagName === "INPUT") return;
         if (e.code === "Space") { e.preventDefault(); arm(); }
         else if (e.code === "Escape") cancel();
+        else if (captureState !== "idle") return;  // lock navigation during a capture session
         else if (e.code === "ArrowRight") setSelected((c) => ({ ...c, s: Math.min(strings - 1, c.s + 1) }));
         else if (e.code === "ArrowLeft") setSelected((c) => ({ ...c, s: Math.max(0, c.s - 1) }));
         else if (e.code === "ArrowDown") setSelected((c) => ({ ...c, p: Math.min(pickups - 1, c.p + 1) }));
@@ -196,6 +215,7 @@
                 onClearSlot={clearSlot} onClearAll={clearAll}
                 pickupNames={pickupNames} setPickupName={setPickupName}
                 balance={s.balance} columnNotes={columnNotes}
+                tuning={tuning} flashCell={flashCell} rowDone={rowDone}
               />
             </Panel>
           </div>

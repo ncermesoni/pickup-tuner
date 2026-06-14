@@ -16,10 +16,10 @@
         "patterns": [
           {
             "group": [
+              "components/feedback/**",
               "components/forms/**",
               "components/instruments/**",
               "components/layout/**",
-              "explorations/**",
               "ui_kits/pickup-tuner/**"
             ],
             "message": "Import design-system components from 'index.js', not component internals."
@@ -58,8 +58,8 @@
         "message": "<Checkbox> doesn't accept that prop. Declared props: checked, label, onChange, disabled, style."
       },
       {
-        "selector": "JSXOpeningElement[name.name='GridCell'] > JSXAttribute > JSXIdentifier[name!=/^(?:delta|level|balance|selected|clipped|onClick|style|key|ref|className|style|children)$/]",
-        "message": "<GridCell> doesn't accept that prop. Declared props: delta, level, balance, selected, clipped, onClick, style."
+        "selector": "JSXOpeningElement[name.name='GridCell'] > JSXAttribute > JSXIdentifier[name!=/^(?:delta|level|balance|selected|target|flash|clipped|onClick|style|key|ref|className|style|children)$/]",
+        "message": "<GridCell> doesn't accept that prop. Declared props: delta, level, balance, selected, target, flash, clipped, onClick, style."
       },
       {
         "selector": "JSXOpeningElement[name.name='Meter'] > JSXAttribute > JSXIdentifier[name!=/^(?:rms|hold|height|style|key|ref|className|style|children)$/]",
@@ -102,8 +102,20 @@
         "message": "<TextField> doesn't accept that prop. Declared props: value, onChange, placeholder, width, disabled, style."
       },
       {
+        "selector": "JSXOpeningElement[name.name='Tooltip'] > JSXAttribute > JSXIdentifier[name!=/^(?:content|placement|maxWidth|children|style|key|ref|className|style|children)$/]",
+        "message": "<Tooltip> doesn't accept that prop. Declared props: content, placement, maxWidth, children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tooltip'] > JSXAttribute[name.name='placement'] > Literal[value!=/^(?:top|bottom)$/]",
+        "message": "<Tooltip> placement must be one of 'top' | 'bottom'."
+      },
+      {
         "selector": "JSXOpeningElement[name.name='NoteReading'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|octave|cents|frequency|key|ref|className|style|children)$/]",
         "message": "<NoteReading> doesn't accept that prop. Declared props: name, octave, cents, frequency."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ValueField'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|min|max|step|decimals|suffix|width|onChange|style|key|ref|className|style|children)$/]",
+        "message": "<ValueField> doesn't accept that prop. Declared props: value, min, max, step, decimals, suffix, width, onChange, style."
       }
     ]
   },
@@ -155,7 +167,13 @@
       "TextField": {
         "replaces": []
       },
+      "Tooltip": {
+        "replaces": []
+      },
       "NoteReading": {
+        "replaces": []
+      },
+      "ValueField": {
         "replaces": []
       }
     },
