@@ -43,8 +43,10 @@ if ($cargoVer -ne $Version) {
     throw "Cargo.toml version ($cargoVer) != requested ($Version). Bump Cargo.toml first."
 }
 
-if (git status --porcelain) {
-    throw "Working tree is not clean. Commit or stash before releasing."
+# Block on uncommitted *tracked* changes (they'd differ from the tagged commit);
+# untracked files (e.g. WIP design docs) don't affect what's built or tagged.
+if (git status --porcelain --untracked-files=no) {
+    throw "Uncommitted changes to tracked files. Commit or stash before releasing."
 }
 
 if (git tag --list $tag) {
