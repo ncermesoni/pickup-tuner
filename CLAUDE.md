@@ -23,8 +23,7 @@ WASAPI/DirectSound.
 
 Releases are built **locally** (so the binary is ASIO-enabled) and published via
 `scripts/release.ps1`. CI never publishes — it only builds the non-ASIO config +
-tests + clippy as a guard. Full rationale:
-`docs/superpowers/specs/2026-06-14-release-strategy-design.md`.
+tests + clippy as a guard.
 
 **Prerequisites:** `CXX_JUCE_ASIO_SDK_DIR` set, `gh` authenticated (needs the
 `workflow` scope to push CI changes), VS 2022 Build Tools installed.
